@@ -14,8 +14,8 @@
   "inputs": [
     {
       "description": "input document image",
-      "max_pixels": "3000*3000",
-      "max_weight": "25*1024*1024",
+      "max_pixels": "6000*6000",
+      "max_weight": "50*1024*1024",
       "dtype": "3x8i",
       "ext": ".png",
       "type": "image"

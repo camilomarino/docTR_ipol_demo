@@ -39,8 +39,8 @@ DDL input:
 ```json
 {
   "description": "input document image",
-  "max_pixels": "3000*3000",
-  "max_weight": "25*1024*1024",
+  "max_pixels": "6000*6000",
+  "max_weight": "50*1024*1024",
   "dtype": "3x8i",
   "ext": ".png",
   "type": "image"
@@ -52,15 +52,17 @@ Recommended defaults:
 - `type`: `image`
 - `dtype`: `3x8i`
 - `ext`: `.png`
-- `max_pixels`: `3000*3000` for the first version.
-- `max_weight`: optional, around `25*1024*1024`.
+- `max_pixels`: `6000*6000` to avoid IPOL pre-resizing common high-resolution
+  document scans.
+- `max_weight`: around `50*1024*1024`.
 
 Rationale:
 
 - docTR accepts images and PDFs, but IPOL image inputs give format checking,
   color conversion, and pixel limits.
 - A single page keeps result filenames simple and avoids dynamic result loops.
-- CPU OCR on very large pages can be slow; IPOL is not a compute cluster.
+- CPU OCR on very large pages can be slow; runtime cost is controlled mainly by
+  `det_input_size`, not by forcing IPOL to shrink the uploaded input.
 
 ### Optional Future Input: PDF
 
@@ -1633,7 +1635,8 @@ The model lists in this document and the preload script must stay synchronized.
 - Do not expose runtime batch sizes in the first DDL; keep `det_bs=2` and
   `reco_bs=128` as internal docTR defaults.
 - Add hOCR support in the first version.
-- Use `max_pixels: "3000*3000"` for the first version.
+- Use `max_pixels: "6000*6000"` so IPOL does not downscale large scans before
+  docTR receives them.
 - Omit `processed_input.png` when no wrapper-level preprocessing is applied.
 - Always generate the detector, recognizer, reading-order, line-grouping, and
   block-grouping diagnostic images listed above.
