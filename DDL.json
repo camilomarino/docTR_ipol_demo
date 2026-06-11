@@ -1,0 +1,429 @@
+{
+  "general": {
+    "demo_title": "docTR: Document Text Recognition OCR",
+    "description": "This demo runs <a href='https://github.com/mindee/doctr'>docTR</a>, an OCR pipeline for document text detection and recognition. It exposes detector, recognizer, preprocessing, orientation, grouping, and post-processing parameters, and returns JSON, hOCR, text, CSV, final overlays, and intermediate diagnostic visualizations.",
+    "timeout": "3000",
+    "xlink_article": "",
+    "requirements": "docker"
+  },
+  "build": {
+    "url": "git@github.com:camilomarino/docTR_ipol_demo.git",
+    "rev": "origin/main",
+    "dockerfile": ".ipol/Dockerfile"
+  },
+  "inputs": [
+    {
+      "description": "input document image",
+      "max_pixels": "3000*3000",
+      "max_weight": "25*1024*1024",
+      "dtype": "3x8i",
+      "ext": ".png",
+      "type": "image"
+    }
+  ],
+  "params": [
+    {
+      "type": "label",
+      "label": "<h3>Models</h3>"
+    },
+    {
+      "id": "det_arch",
+      "label": "Text detector",
+      "comments": "Selects the neural network used to localize text regions before recognition. FAST models are good CPU defaults; DBNet and LinkNet are useful for comparison.",
+      "type": "selection collapsed",
+      "default_value": "fast_base",
+      "values": {
+        "FAST base": "fast_base",
+        "FAST small": "fast_small",
+        "FAST tiny": "fast_tiny",
+        "DBNet ResNet-50": "db_resnet50",
+        "DBNet ResNet-34": "db_resnet34",
+        "DBNet MobileNetV3 large": "db_mobilenet_v3_large",
+        "LinkNet ResNet-18": "linknet_resnet18"
+      }
+    },
+    {
+      "id": "reco_arch",
+      "label": "Text recognizer",
+      "comments": "Selects the neural network used to read each detected word crop. CRNN models are faster; PARSeq and ViTSTR are heavier alternatives.",
+      "type": "selection collapsed",
+      "default_value": "crnn_vgg16_bn",
+      "values": {
+        "CRNN VGG16-BN": "crnn_vgg16_bn",
+        "CRNN MobileNetV3 small": "crnn_mobilenet_v3_small",
+        "CRNN MobileNetV3 large": "crnn_mobilenet_v3_large",
+        "PARSeq": "parseq",
+        "ViTSTR small": "vitstr_small"
+      }
+    },
+    {
+      "type": "label",
+      "label": "<h3>Detector preprocessing</h3>"
+    },
+    {
+      "id": "det_input_size",
+      "label": "Detector input size",
+      "comments": "Size, in pixels, of the square tensor sent to the text detector. Smaller values are faster but may miss small text; larger values cost more CPU and memory.",
+      "type": "selection collapsed",
+      "default_value": "1024",
+      "values": {
+        "Model default": "model_default",
+        "512": "512",
+        "768": "768",
+        "1024": "1024",
+        "1280": "1280",
+        "1536": "1536"
+      }
+    },
+    {
+      "id": "preserve_aspect_ratio",
+      "label": "Preserve aspect ratio",
+      "default": true,
+      "type": "checkbox",
+      "comments": "Resize the page to fit inside the detector square without distorting the document. If disabled, the page is stretched."
+    },
+    {
+      "id": "symmetric_pad",
+      "label": "Symmetric padding",
+      "default": true,
+      "type": "checkbox",
+      "comments": "When preserving aspect ratio, add padding on both sides rather than only at the bottom/right."
+    },
+    {
+      "type": "label",
+      "label": "<h3>Geometry and orientation</h3>"
+    },
+    {
+      "id": "assume_straight_pages",
+      "label": "Assume straight pages",
+      "default": true,
+      "type": "checkbox",
+      "comments": "Use for normal scans/photos with horizontal text. Disable for rotated or skewed text regions; this may return polygon boxes and is slower."
+    },
+    {
+      "id": "export_as_straight_boxes",
+      "label": "Export straight boxes",
+      "default": false,
+      "type": "checkbox",
+      "comments": "Convert rotated/polygon boxes into rectangular boxes in JSON and hOCR. Easier downstream, but loses exact rotated geometry."
+    },
+    {
+      "id": "straighten_pages",
+      "label": "Straighten pages",
+      "default": false,
+      "type": "checkbox",
+      "comments": "Try to rotate the page into a straighter orientation before OCR. Can help uniformly rotated pages, but is slower."
+    },
+    {
+      "id": "detect_orientation",
+      "label": "Detect orientation",
+      "default": false,
+      "type": "checkbox",
+      "comments": "Estimate and report page orientation in JSON. Mostly diagnostic unless combined with straightening."
+    },
+    {
+      "id": "detect_language",
+      "label": "Detect language",
+      "default": false,
+      "type": "checkbox",
+      "comments": "Infer language from recognized text and store it in JSON. Does not change OCR predictions."
+    },
+    {
+      "type": "label",
+      "label": "<h3>Document structure</h3>"
+    },
+    {
+      "id": "resolve_lines",
+      "label": "Resolve lines",
+      "default": true,
+      "type": "checkbox",
+      "comments": "Group detected words into text lines after recognition."
+    },
+    {
+      "id": "resolve_blocks",
+      "label": "Resolve blocks",
+      "default": false,
+      "type": "checkbox",
+      "comments": "Group resolved lines into larger text blocks or paragraph-like regions."
+    },
+    {
+      "id": "paragraph_break",
+      "label": "Paragraph break",
+      "comments": "Relative gap threshold used while grouping words and lines. Smaller values split more aggressively; larger values merge across wider spaces.",
+      "type": "range",
+      "values": {
+        "default": 0.035,
+        "max": 0.2,
+        "min": 0.005,
+        "step": 0.005
+      }
+    },
+    {
+      "type": "label",
+      "label": "<h3>Detection post-processing</h3>"
+    },
+    {
+      "id": "bin_thresh",
+      "label": "Binarization threshold",
+      "comments": "Threshold applied to the detector probability map before extracting candidate text components.",
+      "type": "range",
+      "values": {
+        "default": 0.5,
+        "max": 0.95,
+        "min": 0.05,
+        "step": 0.01
+      }
+    },
+    {
+      "id": "box_thresh",
+      "label": "Box threshold",
+      "comments": "Minimum score required to keep a detected text box after detector post-processing.",
+      "type": "range",
+      "values": {
+        "default": 0.5,
+        "max": 0.95,
+        "min": 0.05,
+        "step": 0.01
+      }
+    },
+    {
+      "type": "label",
+      "label": "<h3>Runtime</h3>"
+    },
+    {
+      "id": "det_bs",
+      "label": "Detector batch size",
+      "comments": "Number of pages processed at once by the detector. With one image input, 1 is safest on IPOL CPU.",
+      "type": "numeric",
+      "values": {
+        "default": 1,
+        "max": 4,
+        "min": 1
+      }
+    },
+    {
+      "id": "reco_bs",
+      "label": "Recognizer batch size",
+      "comments": "Number of detected word crops recognized at once. Larger values can be faster but use more memory.",
+      "type": "numeric",
+      "values": {
+        "default": 128,
+        "max": 256,
+        "min": 1
+      }
+    },
+    {
+      "type": "label",
+      "label": "<h3>Visualization</h3>"
+    },
+    {
+      "id": "draw_labels",
+      "label": "Draw word labels",
+      "default": true,
+      "type": "checkbox",
+      "comments": "Write recognized word strings next to word boxes in overlay images."
+    },
+    {
+      "id": "draw_confidence",
+      "label": "Draw confidence",
+      "default": false,
+      "type": "checkbox",
+      "comments": "Append recognition confidence values to word labels in overlay images."
+    },
+    {
+      "id": "min_confidence_display",
+      "label": "Minimum display confidence",
+      "comments": "Minimum recognition confidence for drawing a word in diagnostic overlays. Does not filter JSON, CSV, hOCR, or text outputs.",
+      "type": "range",
+      "values": {
+        "default": 0,
+        "max": 1,
+        "min": 0,
+        "step": 0.01
+      }
+    },
+    {
+      "id": "recognizer_sample_count",
+      "label": "Recognizer crop samples",
+      "comments": "Number of word crops sampled for recognizer stack/contact-sheet visualizations. Does not change OCR results.",
+      "type": "numeric",
+      "values": {
+        "default": 24,
+        "max": 64,
+        "min": 1
+      }
+    },
+    {
+      "id": "visualization_seed",
+      "label": "Visualization seed",
+      "comments": "Random seed used only to choose which detected word crops appear in recognizer diagnostic images.",
+      "type": "numeric",
+      "values": {
+        "default": 0,
+        "max": 999999,
+        "min": 0
+      }
+    }
+  ],
+  "results": [
+    {
+      "type": "gallery",
+      "label": "<h3>Input and final overlays</h3>",
+      "contents": {
+        "Input": {
+          "img": "input_0.png"
+        },
+        "OCR page": {
+          "img": "ocr_page.png"
+        },
+        "Words": {
+          "img": "overlay_words.png"
+        },
+        "Lines": {
+          "img": "overlay_lines.png"
+        },
+        "Blocks": {
+          "img": "overlay_blocks.png"
+        },
+        "All boxes": {
+          "img": "overlay_all.png"
+        }
+      }
+    },
+    {
+      "type": "gallery",
+      "label": "<h3>Detector diagnostics</h3>",
+      "contents": {
+        "Detector input": {
+          "img": "detector_input.png"
+        },
+        "Detector response": {
+          "img": "detector_probability_map.png"
+        },
+        "Binarized response": {
+          "img": "detector_binary_map.png"
+        },
+        "Detector components": {
+          "img": "detector_components.png"
+        },
+        "Boxes sent to recognizer": {
+          "img": "detector_word_boxes.png"
+        }
+      }
+    },
+    {
+      "type": "gallery",
+      "label": "<h3>Recognizer inputs</h3>",
+      "contents": {
+        "Raw word crops": {
+          "img": "recognizer_raw_crops_stack.png"
+        },
+        "Network input crops": {
+          "img": "recognizer_input_crops_stack.png"
+        },
+        "Crop contact sheet": {
+          "img": "recognizer_crops_contact_sheet.png"
+        }
+      }
+    },
+    {
+      "type": "gallery",
+      "label": "<h3>Reading order and grouping</h3>",
+      "contents": {
+        "Word reading order": {
+          "img": "reading_order_words.png"
+        },
+        "Line grouping": {
+          "img": "line_grouping.png"
+        },
+        "Block grouping": {
+          "img": "block_grouping.png"
+        }
+      }
+    },
+    {
+      "type": "text_file",
+      "label": "<h3>Recognized text</h3>",
+      "contents": "result.txt",
+      "style": "{'width':'100%','height':'18em','white-space':'pre-wrap'}"
+    },
+    {
+      "type": "text_file",
+      "label": "<h3>Run summary</h3>",
+      "contents": "summary.txt",
+      "style": "{'width':'100%','height':'14em','white-space':'pre-wrap'}"
+    },
+    {
+      "type": "file_download",
+      "label": "<h3>Download structured outputs</h3>",
+      "contents": {
+        "JSON": "result.json",
+        "Raw docTR JSON": "result_raw_doctr.json",
+        "hOCR": "result.hocr",
+        "hOCR status": "hocr_error.txt",
+        "Words CSV": "words.csv",
+        "Structure debug JSON": "structure_debug.json",
+        "Text": "result.txt",
+        "Summary": "summary.txt"
+      }
+    }
+  ],
+  "archive": {
+    "enable_reconstruct": true,
+    "files": {
+      "input_0.png": "Input",
+      "ocr_page.png": "OCR page",
+      "detector_input.png": "Detector input",
+      "detector_probability_map.png": "Detector response",
+      "detector_binary_map.png": "Binarized detector response",
+      "detector_components.png": "Detector components",
+      "detector_word_boxes.png": "Detector word boxes",
+      "recognizer_raw_crops_stack.png": "Raw recognizer crops",
+      "recognizer_input_crops_stack.png": "Recognizer network inputs",
+      "recognizer_crops_contact_sheet.png": "Recognizer crop contact sheet",
+      "reading_order_words.png": "Word reading order",
+      "line_grouping.png": "Line grouping",
+      "block_grouping.png": "Block grouping",
+      "overlay_words.png": "Word boxes",
+      "overlay_lines.png": "Line boxes",
+      "overlay_blocks.png": "Block boxes",
+      "overlay_all.png": "All boxes",
+      "result.json": "Full JSON",
+      "result_raw_doctr.json": "Raw docTR JSON",
+      "result.hocr": "hOCR",
+      "hocr_error.txt": "hOCR status",
+      "structure_debug.json": "Structure debug JSON",
+      "words.csv": "Word table",
+      "result.txt": "Recognized text",
+      "summary.txt": "Summary"
+    },
+    "params": [
+      "det_arch",
+      "reco_arch",
+      "det_input_size",
+      "preserve_aspect_ratio",
+      "symmetric_pad",
+      "assume_straight_pages",
+      "export_as_straight_boxes",
+      "straighten_pages",
+      "detect_orientation",
+      "detect_language",
+      "resolve_lines",
+      "resolve_blocks",
+      "paragraph_break",
+      "bin_thresh",
+      "box_thresh",
+      "det_bs",
+      "reco_bs",
+      "draw_labels",
+      "draw_confidence",
+      "min_confidence_display",
+      "recognizer_sample_count",
+      "visualization_seed"
+    ],
+    "info": {
+      "run_time": "run time"
+    }
+  },
+  "run": "python $bin/run_doctr.py --input $input_0 --det-arch $det_arch --reco-arch $reco_arch --det-input-size $det_input_size --preserve-aspect-ratio $preserve_aspect_ratio --symmetric-pad $symmetric_pad --assume-straight-pages $assume_straight_pages --export-as-straight-boxes $export_as_straight_boxes --straighten-pages $straighten_pages --detect-orientation $detect_orientation --detect-language $detect_language --resolve-lines $resolve_lines --resolve-blocks $resolve_blocks --paragraph-break $paragraph_break --bin-thresh $bin_thresh --box-thresh $box_thresh --det-bs $det_bs --reco-bs $reco_bs --draw-labels $draw_labels --draw-confidence $draw_confidence --min-confidence-display $min_confidence_display --recognizer-sample-count $recognizer_sample_count --visualization-seed $visualization_seed"
+}
