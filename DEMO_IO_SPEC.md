@@ -196,31 +196,28 @@ DDL type: numeric.
 
 Recommended values:
 
-- `0`: use the input size stored in the selected detector model config. For
-  most docTR text detectors this is `1024 x 1024`.
 - `512`
 - `768`
 - `1024`
 - `1280`
 - `1536`
 
-Default: `0`, so the first run matches `ocr_predictor()` without manual
-preprocessing overrides.
+Default: `1024`, matching the detector resize size used by docTR 1.0.1 for
+every detector exposed in this demo.
 
 User-facing explanation:
 
-> Size, in pixels, of the square tensor sent to the text detector. Use 0 to keep
-> the selected docTR detector default. Recommended values to try: 512, 768,
-> 1024, 1280, 1536. Smaller values are faster but may miss small text; larger
-> values can recover small text but cost more CPU time and memory.
+> Size, in pixels, of the square tensor sent to the text detector. Default 1024
+> matches docTR 1.0.1 for the exposed detectors. Recommended values to try: 512,
+> 768, 1024, 1280, 1536. Smaller values are faster but may miss small text;
+> larger values can recover small text but cost more CPU time and memory.
 
 Implementation:
 
 ```python
 args.det_input_size = normalize_det_input_size(args.det_input_size)
-if args.det_input_size != "model_default":
-    size = int(args.det_input_size)
-    predictor.det_predictor.pre_processor.resize.size = (size, size)
+size = int(args.det_input_size)
+predictor.det_predictor.pre_processor.resize.size = (size, size)
 ```
 
 Visualization impact:
@@ -589,7 +586,9 @@ Purpose: threshold for detector binarization map.
 
 DDL type: range.
 
-Default: `0.1`, matching docTR's `fast_base` detector postprocessor default.
+Default: `0.1`, matching docTR's no-argument `fast_base` detector
+postprocessor default. Detector-specific note: DBNet variants default to `0.3`
+internally if instantiated directly.
 
 User-facing explanation:
 
@@ -642,7 +641,9 @@ components are extracted.
 
 DDL type: range.
 
-Default: `1.0`, matching the default `fast_base` OCR run.
+Default: `1.0`, matching the no-argument `fast_base` OCR run.
+Detector-specific note: DBNet and LinkNet variants default to `1.5` internally
+if instantiated directly.
 
 Suggested range:
 

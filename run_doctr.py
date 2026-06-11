@@ -56,7 +56,7 @@ OUTPUT_TEXT_FILES = [
 PARAMETER_EFFECTS = {
     "det_arch": "Passed to doctr.models.ocr_predictor(det_arch=...). It selects the detection model before any inference.",
     "reco_arch": "Passed to doctr.models.ocr_predictor(reco_arch=...). It selects the recognition model before any inference.",
-    "det_input_size": "If greater than 0, applied after model construction as predictor.det_predictor.pre_processor.resize.size = (size, size). A value of 0 leaves docTR unchanged.",
+    "det_input_size": "Applied after model construction as predictor.det_predictor.pre_processor.resize.size = (size, size). The 1024 default matches docTR 1.0.1 for the exposed detectors.",
     "preserve_aspect_ratio": "Passed to doctr.models.ocr_predictor(preserve_aspect_ratio=...). docTR forwards it to the detector preprocessor resize transform.",
     "symmetric_pad": "Passed to doctr.models.ocr_predictor(symmetric_pad=...). docTR forwards it to the detector preprocessor resize transform.",
     "reco_preserve_aspect_ratio": "Applied after model construction as predictor.reco_predictor.pre_processor.resize.preserve_aspect_ratio. docTR's recognizer default is True.",
@@ -148,16 +148,16 @@ def coerce_int(value: Any, default: int) -> int:
 
 
 def normalize_det_input_size(value: Any) -> str:
-    value = empty_to(value, "model_default")
+    value = empty_to(value, "1024")
     text = str(value).strip().lower()
     if text in {"model_default", "default", "0"}:
-        return "model_default"
+        return "1024"
     try:
         size = int(text)
     except ValueError:
-        return "model_default"
+        return "1024"
     if size <= 0:
-        return "model_default"
+        return "1024"
     return str(size)
 
 
@@ -201,7 +201,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input", required=True)
     add_optional_value(parser, "--det-arch", "fast_base")
     add_optional_value(parser, "--reco-arch", "crnn_vgg16_bn")
-    add_optional_value(parser, "--det-input-size", "model_default")
+    add_optional_value(parser, "--det-input-size", "1024")
     add_optional_value(parser, "--preserve-aspect-ratio", True)
     add_optional_value(parser, "--symmetric-pad", True)
     add_optional_value(parser, "--reco-preserve-aspect-ratio", True)
@@ -885,11 +885,10 @@ def build_predictor(args: argparse.Namespace) -> Any:
         paragraph_break=args.paragraph_break,
     )
 
-    # DDL detector preprocessing parameter. The docTR default path is to leave
-    # predictor.det_predictor.pre_processor.resize.size untouched.
-    if args.det_input_size != "model_default":
-        size = int(args.det_input_size)
-        predictor.det_predictor.pre_processor.resize.size = (size, size)
+    # DDL detector preprocessing parameter. 1024 is docTR 1.0.1's default
+    # detector input size for every detector exposed in this demo.
+    size = int(args.det_input_size)
+    predictor.det_predictor.pre_processor.resize.size = (size, size)
 
     # DDL recognizer preprocessing parameters. docTR's public ocr_predictor()
     # does not expose these directly, but they are the recognizer Resize fields

@@ -90,7 +90,7 @@ docker run --rm -v /tmp/doctr-ipol-out:/workdir/exec -w /workdir/exec doctr-ipol
   --input input_0.png \
   --det-arch fast_base \
   --reco-arch crnn_vgg16_bn \
-  --det-input-size 0 \
+  --det-input-size 1024 \
   --preserve-aspect-ratio true \
   --symmetric-pad true \
   --reco-preserve-aspect-ratio true \
