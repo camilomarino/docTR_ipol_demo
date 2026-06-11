@@ -14,6 +14,8 @@ results.
 Initial target:
 
 - one image input, converted by IPOL to `input_0.png`;
+- the DDL `run` command passes that input as `$input_0`, which IPOL resolves to
+  the execution-directory path before running the container command;
 - PyTorch CPU execution in `registry.ipol.im/ipol:v2-py3.11-pytorch`;
 - pretrained docTR models downloaded during Docker build;
 - fixed output filenames in `/workdir/exec`;
