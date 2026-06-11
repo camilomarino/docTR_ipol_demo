@@ -19,6 +19,7 @@ import torch
 from doctr.io.elements import Document
 from doctr.models import ocr_predictor
 from doctr.models._utils import get_language
+from doctr.models.recognition.predictor._utils import split_crops
 from doctr.utils.geometry import detach_scores
 from PIL import Image, ImageDraw, ImageFont
 
@@ -31,6 +32,7 @@ OUTPUT_IMAGE_FILES = [
     "detector_components.png",
     "detector_word_boxes.png",
     "recognizer_raw_crops_stack.png",
+    "recognizer_split_crops.png",
     "recognizer_input_crops_stack.png",
     "recognizer_crops_contact_sheet.png",
     "reading_order_words.png",
@@ -61,6 +63,10 @@ PARAMETER_EFFECTS = {
     "symmetric_pad": "Passed to doctr.models.ocr_predictor(symmetric_pad=...). docTR forwards it to the detector preprocessor resize transform.",
     "reco_preserve_aspect_ratio": "Applied after model construction as predictor.reco_predictor.pre_processor.resize.preserve_aspect_ratio. docTR's recognizer default is True.",
     "reco_symmetric_pad": "Applied after model construction as predictor.reco_predictor.pre_processor.resize.symmetric_pad. docTR's recognizer default is False.",
+    "split_wide_crops": "Applied after model construction as predictor.reco_predictor.split_wide_crops. When enabled, docTR splits very wide word crops before recognition and remaps their predictions.",
+    "crop_split_critical_ar": "Applied after model construction as predictor.reco_predictor.critical_ar. Crops with width/height above this ratio are split when split_wide_crops is enabled.",
+    "crop_split_target_ar": "Applied after model construction as predictor.reco_predictor.target_ar. It controls the target aspect ratio of each recognizer sub-crop.",
+    "crop_split_overlap_ratio": "Applied after model construction as predictor.reco_predictor.overlap_ratio. It controls horizontal overlap between sub-crops used for prediction remapping.",
     "assume_straight_pages": "Passed to doctr.models.ocr_predictor(assume_straight_pages=...). It controls straight boxes versus rotated crop preparation.",
     "export_as_straight_boxes": "Passed to doctr.models.ocr_predictor(export_as_straight_boxes=...). It is used by docTR's DocumentBuilder during export.",
     "straighten_pages": "Passed to doctr.models.ocr_predictor(straighten_pages=...). When enabled, docTR estimates orientation and runs detection again on straightened pages.",
@@ -173,6 +179,16 @@ def normalize_args(args: argparse.Namespace) -> argparse.Namespace:
     args.symmetric_pad = coerce_bool(args.symmetric_pad, True)
     args.reco_preserve_aspect_ratio = coerce_bool(args.reco_preserve_aspect_ratio, True)
     args.reco_symmetric_pad = coerce_bool(args.reco_symmetric_pad, False)
+    args.split_wide_crops = coerce_bool(args.split_wide_crops, True)
+    args.crop_split_critical_ar = coerce_float(args.crop_split_critical_ar, 8.0)
+    args.crop_split_target_ar = coerce_int(args.crop_split_target_ar, 6)
+    args.crop_split_overlap_ratio = coerce_float(args.crop_split_overlap_ratio, 0.5)
+    if args.crop_split_critical_ar <= 0:
+        args.crop_split_critical_ar = 8.0
+    if args.crop_split_target_ar <= 0:
+        args.crop_split_target_ar = 6
+    if not 0.0 < args.crop_split_overlap_ratio < 1.0:
+        args.crop_split_overlap_ratio = 0.5
     args.assume_straight_pages = coerce_bool(args.assume_straight_pages, True)
     args.export_as_straight_boxes = coerce_bool(args.export_as_straight_boxes, False)
     args.straighten_pages = coerce_bool(args.straighten_pages, False)
@@ -206,6 +222,10 @@ def parse_args() -> argparse.Namespace:
     add_optional_value(parser, "--symmetric-pad", True)
     add_optional_value(parser, "--reco-preserve-aspect-ratio", True)
     add_optional_value(parser, "--reco-symmetric-pad", False)
+    add_optional_value(parser, "--split-wide-crops", True)
+    add_optional_value(parser, "--crop-split-critical-ar", 8.0)
+    add_optional_value(parser, "--crop-split-target-ar", 6)
+    add_optional_value(parser, "--crop-split-overlap-ratio", 0.5)
     add_optional_value(parser, "--assume-straight-pages", True)
     add_optional_value(parser, "--export-as-straight-boxes", False)
     add_optional_value(parser, "--straighten-pages", False)
@@ -571,6 +591,143 @@ def make_contact_sheet(images: list[np.ndarray], labels: list[str], path: str) -
     sheet.save(path)
 
 
+def crop_aspect_ratio(crop: np.ndarray) -> float:
+    height, width = crop.shape[:2]
+    return width / max(height, 1)
+
+
+def split_start_columns(crop: np.ndarray, target_ar: int, overlap_ratio: float) -> list[int]:
+    height, width = crop.shape[:2]
+    split_width = max(1, math.ceil(height * target_ar))
+    if width <= split_width:
+        return [0]
+    overlap_width = max(0, math.floor(split_width * overlap_ratio))
+    step = max(split_width - overlap_width, 1)
+    starts = list(range(0, width - split_width + 1, step))
+    if starts[-1] + split_width < width:
+        starts.append(width - split_width)
+    return starts
+
+
+def resize_to_box(image: np.ndarray, max_size: tuple[int, int]) -> Image.Image:
+    pil = Image.fromarray(image)
+    pil.thumbnail(max_size, Image.Resampling.LANCZOS)
+    return pil
+
+
+def recognizer_split_plan(predictor: Any, crops: list[np.ndarray]) -> tuple[list[np.ndarray], list[Any], bool]:
+    if not crops:
+        return [], [], False
+    reco_predictor = predictor.reco_predictor
+    if not reco_predictor.split_wide_crops:
+        return crops, list(range(len(crops))), False
+    return split_crops(crops, reco_predictor.critical_ar, reco_predictor.target_ar, reco_predictor.overlap_ratio)
+
+
+def network_crop_sample(crop_map: list[Any], original_indices: list[int], max_items: int) -> list[tuple[int, int]]:
+    pairs: list[tuple[int, int]] = []
+    for original_idx in original_indices:
+        if original_idx >= len(crop_map):
+            continue
+        item = crop_map[original_idx]
+        if isinstance(item, int):
+            pairs.append((item, original_idx))
+        else:
+            start, end, _ = item
+            pairs.extend((split_idx, original_idx) for split_idx in range(start, end))
+        if len(pairs) >= max_items:
+            break
+    return pairs[:max_items]
+
+
+def save_recognizer_split_diagnostics(
+    path: str,
+    crops: list[np.ndarray],
+    split_crops_list: list[np.ndarray],
+    crop_map: list[Any],
+    indices: list[int],
+    predictor: Any,
+) -> None:
+    if not crops or not indices:
+        save_placeholder(path, "Recognizer crop splitting", "No word crops were detected.")
+        return
+
+    reco_predictor = predictor.reco_predictor
+    row_w, row_h = 1180, 148
+    label_w, original_w = 220, 380
+    header_h = 42
+    rows = min(len(indices), 32)
+    image = Image.new("RGB", (row_w, header_h + rows * row_h), "white")
+    draw = ImageDraw.Draw(image)
+    draw.text(
+        (12, 12),
+        (
+            f"split_wide_crops={reco_predictor.split_wide_crops}, "
+            f"critical_ar={reco_predictor.critical_ar:g}, target_ar={reco_predictor.target_ar}, "
+            f"overlap={reco_predictor.overlap_ratio:g}"
+        ),
+        fill=(30, 30, 30),
+        font=font(),
+    )
+
+    for row_idx, crop_idx in enumerate(indices[:rows]):
+        if crop_idx >= len(crops) or crop_idx >= len(crop_map):
+            continue
+        y = header_h + row_idx * row_h
+        crop = crops[crop_idx]
+        item = crop_map[crop_idx]
+        if isinstance(item, int):
+            subcrop_indices = [item]
+            last_overlap = 0.0
+            status = "kept"
+        else:
+            start, end, last_overlap = item
+            subcrop_indices = list(range(start, end))
+            status = f"split x{len(subcrop_indices)}"
+
+        draw.rectangle([0, y, row_w - 1, y + row_h - 1], outline=(220, 220, 220))
+        draw.text((10, y + 10), f"crop {crop_idx + 1}", fill=(30, 30, 30), font=font())
+        draw.text((10, y + 30), f"AR {crop_aspect_ratio(crop):.2f}", fill=(70, 70, 70), font=font())
+        draw.text((10, y + 50), status, fill=(184, 64, 108) if status.startswith("split") else (47, 140, 70), font=font())
+        if last_overlap:
+            draw.text((10, y + 70), f"last overlap {last_overlap:.2f}", fill=(70, 70, 70), font=font())
+
+        original = resize_to_box(crop, (original_w - 24, row_h - 30))
+        original_x = label_w + 12
+        original_y = y + max(12, (row_h - original.height) // 2)
+        image.paste(original, (original_x, original_y))
+        draw.rectangle(
+            [original_x - 1, original_y - 1, original_x + original.width, original_y + original.height],
+            outline=(80, 80, 80),
+        )
+
+        if status.startswith("split") and crop.shape[1] > 0:
+            starts = split_start_columns(crop, reco_predictor.target_ar, reco_predictor.overlap_ratio)
+            split_width_px = max(1, math.ceil(crop.shape[0] * reco_predictor.target_ar))
+            scale = original.width / crop.shape[1]
+            for start in starts:
+                x1 = original_x + int(round(start * scale))
+                x2 = original_x + int(round(min(start + split_width_px, crop.shape[1]) * scale))
+                draw.line([x1, original_y, x1, original_y + original.height], fill=(220, 30, 30), width=2)
+                draw.line([x2, original_y, x2, original_y + original.height], fill=(220, 30, 30), width=2)
+
+        tile_x = label_w + original_w + 18
+        tile_y = y + 12
+        for local_idx, sub_idx in enumerate(subcrop_indices[:6]):
+            if sub_idx >= len(split_crops_list):
+                continue
+            sub = resize_to_box(split_crops_list[sub_idx], (150, 48))
+            x = tile_x + (local_idx % 3) * 172
+            yy = tile_y + (local_idx // 3) * 64
+            image.paste(sub, (x, yy))
+            draw.rectangle([x - 1, yy - 1, x + sub.width, yy + sub.height], outline=(47, 140, 70))
+            draw.text((x, yy + sub.height + 3), f"net crop {sub_idx + 1}", fill=(47, 140, 70), font=font())
+        if len(subcrop_indices) > 6:
+            draw.text((tile_x, y + row_h - 22), f"+ {len(subcrop_indices) - 6} more subcrops", fill=(70, 70, 70), font=font())
+
+    image.save(path)
+
+
 def flatten_pages_crops(crops: list[list[np.ndarray]]) -> list[np.ndarray]:
     return [crop for page_crops in crops for crop in page_crops]
 
@@ -895,6 +1052,10 @@ def build_predictor(args: argparse.Namespace) -> Any:
     # created by recognition_predictor().
     predictor.reco_predictor.pre_processor.resize.preserve_aspect_ratio = args.reco_preserve_aspect_ratio
     predictor.reco_predictor.pre_processor.resize.symmetric_pad = args.reco_symmetric_pad
+    predictor.reco_predictor.split_wide_crops = args.split_wide_crops
+    predictor.reco_predictor.critical_ar = args.crop_split_critical_ar
+    predictor.reco_predictor.target_ar = args.crop_split_target_ar
+    predictor.reco_predictor.overlap_ratio = args.crop_split_overlap_ratio
 
     # DDL detection post-processing parameters. docTR stores both thresholds on
     # the detector model postprocessor, so they are applied after construction.
@@ -914,6 +1075,10 @@ def selected_params(args: argparse.Namespace) -> dict[str, Any]:
         "symmetric_pad": args.symmetric_pad,
         "reco_preserve_aspect_ratio": args.reco_preserve_aspect_ratio,
         "reco_symmetric_pad": args.reco_symmetric_pad,
+        "split_wide_crops": args.split_wide_crops,
+        "crop_split_critical_ar": args.crop_split_critical_ar,
+        "crop_split_target_ar": args.crop_split_target_ar,
+        "crop_split_overlap_ratio": args.crop_split_overlap_ratio,
         "assume_straight_pages": args.assume_straight_pages,
         "export_as_straight_boxes": args.export_as_straight_boxes,
         "straighten_pages": args.straighten_pages,
@@ -1055,14 +1220,18 @@ def write_outputs(args: argparse.Namespace, input_page: np.ndarray, predictor: A
     start = perf_counter()
     raw_crops = flatten_pages_crops(diagnostics["raw_crops"])
     final_crops = flatten_pages_crops(diagnostics["final_crops"])
+    split_network_crops, split_crop_map, split_remapped = recognizer_split_plan(predictor, final_crops)
     indices = sample_indices(len(final_crops), args.recognizer_sample_count, args.visualization_seed)
     sampled_raw = [raw_crops[index] for index in indices if index < len(raw_crops)]
-    sampled_final = [final_crops[index] for index in indices if index < len(final_crops)]
-    sampled_network = preprocessed_images(predictor.reco_predictor.pre_processor, sampled_final)
+    network_pairs = network_crop_sample(split_crop_map, indices, max(args.recognizer_sample_count, 1))
+    sampled_network_source = [split_network_crops[split_idx] for split_idx, _ in network_pairs if split_idx < len(split_network_crops)]
+    sampled_network = preprocessed_images(predictor.reco_predictor.pre_processor, sampled_network_source)
     labels = crop_labels(indices, diagnostics["word_preds"])
+    network_labels = [f"net {split_idx + 1} <- crop {original_idx + 1}" for split_idx, original_idx in network_pairs]
     make_vertical_stack(sampled_raw, labels, "recognizer_raw_crops_stack.png", "Raw word crops")
-    make_vertical_stack(sampled_network, labels, "recognizer_input_crops_stack.png", "Recognizer network input crops")
-    make_contact_sheet(sampled_network, labels, "recognizer_crops_contact_sheet.png")
+    save_recognizer_split_diagnostics("recognizer_split_crops.png", final_crops, split_network_crops, split_crop_map, indices, predictor)
+    make_vertical_stack(sampled_network, network_labels, "recognizer_input_crops_stack.png", "Recognizer network input crops")
+    make_contact_sheet(sampled_network, network_labels, "recognizer_crops_contact_sheet.png")
     timings["diagnostic_images_recognizer"] = perf_counter() - start
 
     hocr_status = write_hocr(document)
@@ -1071,12 +1240,18 @@ def write_outputs(args: argparse.Namespace, input_page: np.ndarray, predictor: A
         "detector_boxes": diagnostics["detector_boxes"],
         "detector_objectness_scores": diagnostics["detector_scores"],
         "sampled_crop_indices": indices,
+        "recognizer_split_wide_crops": predictor.reco_predictor.split_wide_crops,
+        "recognizer_split_remap_required": split_remapped,
+        "recognizer_split_crop_map": split_crop_map,
+        "recognizer_split_input_crop_count": len(final_crops),
+        "recognizer_split_network_crop_count": len(split_network_crops),
         "word_predictions_flat": diagnostics["word_preds"],
         "word_rows": rows,
         "document_structure": document_export,
         "diagnostic_notes": {
             "detector_probability_map": "First channel of the detector response map.",
             "detector_binary_map": f"Detector response thresholded at bin_thresh={args.bin_thresh}.",
+            "recognizer_split_crops": "For sampled detector crops, shows the crop sent to the recognizer and any sub-crops created by docTR split_wide_crops before recognition.",
             "recognizer_input_crops_stack": "Sampled crops after docTR recognizer preprocessing and denormalization for display.",
         },
     }
@@ -1099,6 +1274,7 @@ def write_outputs(args: argparse.Namespace, input_page: np.ndarray, predictor: A
             "detector_boxes": int(len(detector_boxes)),
             "raw_crops": len(raw_crops),
             "recognizer_crops": len(final_crops),
+            "recognizer_network_crops_after_split": len(split_network_crops),
         },
         "timings_seconds": timings,
         "hocr_status": hocr_status,

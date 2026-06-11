@@ -323,6 +323,106 @@ docTR mapping after predictor creation:
 predictor.reco_predictor.pre_processor.resize.symmetric_pad = args.reco_symmetric_pad
 ```
 
+### `split_wide_crops`
+
+Purpose: recognizer wide-crop post-processing switch. When enabled, docTR
+splits very wide detector crops into overlapping sub-crops before recognition
+and remaps the sub-crop predictions back into one word prediction.
+
+DDL type: checkbox.
+
+Default: `true`, matching docTR's `RecognitionPredictor` default.
+
+User-facing explanation:
+
+> Split very wide word crops into overlapping sub-crops before recognition,
+> then merge the sub-crop predictions.
+
+docTR mapping after predictor creation:
+
+```python
+predictor.reco_predictor.split_wide_crops = args.split_wide_crops
+```
+
+Diagnostic output: `recognizer_split_crops.png` shows the original recognizer
+crop, the split boundaries, and the sub-crops sent to the recognition network.
+
+### `crop_split_critical_ar`
+
+Purpose: width/height threshold above which a recognizer crop is considered
+wide enough to split.
+
+DDL type: range.
+
+Default: `8`, matching docTR.
+
+Suggested range:
+
+- min: `2`
+- max: `20`
+- step: `0.5`
+
+User-facing explanation:
+
+> Recognizer crops with width/height above this threshold are split when
+> wide-crop splitting is enabled.
+
+docTR mapping after predictor creation:
+
+```python
+predictor.reco_predictor.critical_ar = args.crop_split_critical_ar
+```
+
+### `crop_split_target_ar`
+
+Purpose: target width/height ratio for each sub-crop produced by the wide-crop
+splitter.
+
+DDL type: numeric.
+
+Default: `6`, matching docTR.
+
+Suggested range:
+
+- min: `1`
+- max: `20`
+
+User-facing explanation:
+
+> Target width/height ratio for each recognizer sub-crop created from a wide
+> word crop.
+
+docTR mapping after predictor creation:
+
+```python
+predictor.reco_predictor.target_ar = args.crop_split_target_ar
+```
+
+### `crop_split_overlap_ratio`
+
+Purpose: overlap fraction between adjacent sub-crops created from one wide
+recognizer crop.
+
+DDL type: range.
+
+Default: `0.5`, matching docTR.
+
+Suggested range:
+
+- min: `0.05`
+- max: `0.95`
+- step: `0.05`
+
+User-facing explanation:
+
+> Horizontal overlap fraction between adjacent recognizer sub-crops.
+
+docTR mapping after predictor creation:
+
+```python
+predictor.reco_predictor.overlap_ratio = args.crop_split_overlap_ratio
+```
+
 ## Detector Geometry and Orientation Parameters
 
 ### `assume_straight_pages`
@@ -741,7 +841,11 @@ Implementation:
 - sample without replacement when there are more crops than the requested count;
 - use `visualization_seed` for reproducibility;
 - use the same sampled indices in `recognizer_raw_crops_stack.png`,
-  `recognizer_input_crops_stack.png`, and `recognizer_crops_contact_sheet.png`.
+  `recognizer_split_crops.png`, `recognizer_input_crops_stack.png`, and
+  `recognizer_crops_contact_sheet.png`.
+- when `split_wide_crops` creates multiple network crops from one detector
+  crop, `recognizer_input_crops_stack.png` and
+  `recognizer_crops_contact_sheet.png` show the post-split network inputs.
 
 ### `visualization_seed`
 
@@ -921,11 +1025,33 @@ Display: gallery.
 
 Archive: yes.
 
+#### `recognizer_split_crops.png`
+
+Diagnostic view of the recognizer crop post-processing applied after detector
+boxes are converted into word crops.
+
+For each sampled crop, the image shows:
+
+- the original detector crop that enters the recognizer stage;
+- its width/height ratio;
+- whether docTR keeps it as one crop or splits it with `split_wide_crops`;
+- red split boundaries on wide crops;
+- the overlapping sub-crops that will be passed to the recognition network.
+
+This output explains the effect of `split_wide_crops`,
+`crop_split_critical_ar`, `crop_split_target_ar`, and
+`crop_split_overlap_ratio`.
+
+Display: gallery.
+
+Archive: yes.
+
 #### `recognizer_input_crops_stack.png`
 
-Vertical stack of the same sampled crops after the recognizer preprocessor,
-de-normalized for display. This shows the crops as they enter the recognition
-network, including resize, padding, and aspect-ratio effects.
+Vertical stack of the sampled crops after wide-crop splitting and recognizer
+preprocessing, de-normalized for display. This shows the image tensors as they
+enter the recognition network, including resize, padding, aspect-ratio effects,
+and additional sub-crops created by `split_wide_crops`.
 
 This is the visualization requested for "palabras tal cual entran a la red".
 
@@ -1285,9 +1411,11 @@ Recommended result blocks:
   },
   {
     "type": "gallery",
-    "label": "<h3>Recognizer inputs</h3>",
+    "label": "<h3>Recognizer inputs and crop post-processing</h3>",
     "contents": {
+      "Boxes sent to recognizer": { "img": "detector_word_boxes.png" },
       "Raw word crops": { "img": "recognizer_raw_crops_stack.png" },
+      "Wide crop splitting": { "img": "recognizer_split_crops.png" },
       "Network input crops": { "img": "recognizer_input_crops_stack.png" },
       "Crop contact sheet": { "img": "recognizer_crops_contact_sheet.png" }
     }
@@ -1350,6 +1478,7 @@ Archive files:
 - `detector_components.png`: Detector components
 - `detector_word_boxes.png`: Detector word boxes
 - `recognizer_raw_crops_stack.png`: Raw sampled recognizer crops
+- `recognizer_split_crops.png`: Recognizer wide-crop splitting
 - `recognizer_input_crops_stack.png`: Sampled crops as sent to recognizer
 - `recognizer_crops_contact_sheet.png`: Recognizer crop contact sheet
 - `reading_order_words.png`: Word reading order

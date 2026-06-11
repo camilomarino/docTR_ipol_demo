@@ -139,6 +139,50 @@
       "comments": "When recognizer padding is enabled, pad word crops symmetrically instead of only at the bottom/right. This modifies predictor.reco_predictor.pre_processor.resize.symmetric_pad. Code: predictor.reco_predictor.pre_processor.resize.symmetric_pad = args.reco_symmetric_pad."
     },
     {
+      "id": "split_wide_crops",
+      "label": "Split wide recognizer crops",
+      "default": true,
+      "default_value": true,
+      "type": "checkbox",
+      "comments": "Split very wide word crops into overlapping sub-crops before recognition, then merge the sub-crop predictions. This is docTR's default recognizer behavior. Code: predictor.reco_predictor.split_wide_crops = args.split_wide_crops."
+    },
+    {
+      "id": "crop_split_critical_ar",
+      "label": "Wide crop aspect-ratio threshold",
+      "comments": "Recognizer crops with width/height above this threshold are split when wide-crop splitting is enabled. Default 8 matches docTR. Code: predictor.reco_predictor.critical_ar = args.crop_split_critical_ar.",
+      "type": "range",
+      "values": {
+        "default": 8,
+        "max": 20,
+        "min": 2,
+        "step": 0.5
+      }
+    },
+    {
+      "id": "crop_split_target_ar",
+      "label": "Wide crop target aspect ratio",
+      "comments": "Target width/height ratio for each recognizer sub-crop created from a wide word crop. Default 6 matches docTR. Code: predictor.reco_predictor.target_ar = args.crop_split_target_ar.",
+      "type": "numeric",
+      "values": {
+        "default": 6,
+        "max": 20,
+        "min": 1,
+        "step": 1
+      }
+    },
+    {
+      "id": "crop_split_overlap_ratio",
+      "label": "Wide crop overlap ratio",
+      "comments": "Horizontal overlap fraction between adjacent recognizer sub-crops. Must be between 0 and 1. Default 0.5 matches docTR. Code: predictor.reco_predictor.overlap_ratio = args.crop_split_overlap_ratio.",
+      "type": "range",
+      "values": {
+        "default": 0.5,
+        "max": 0.95,
+        "min": 0.05,
+        "step": 0.05
+      }
+    },
+    {
       "id": "disable_crop_orientation",
       "label": "Disable crop orientation model",
       "default": false,
@@ -335,10 +379,16 @@
     },
     {
       "type": "gallery",
-      "label": "<h3>Recognizer inputs</h3>",
+      "label": "<h3>Recognizer inputs and crop post-processing</h3>",
       "contents": {
+        "Boxes sent to recognizer": {
+          "img": "detector_word_boxes.png"
+        },
         "Raw word crops": {
           "img": "recognizer_raw_crops_stack.png"
+        },
+        "Wide crop splitting": {
+          "img": "recognizer_split_crops.png"
         },
         "Network input crops": {
           "img": "recognizer_input_crops_stack.png"
@@ -407,6 +457,7 @@
       "detector_components.png": "Detector components",
       "detector_word_boxes.png": "Detector word boxes",
       "recognizer_raw_crops_stack.png": "Raw recognizer crops",
+      "recognizer_split_crops.png": "Recognizer wide-crop splitting",
       "recognizer_input_crops_stack.png": "Recognizer network inputs",
       "recognizer_crops_contact_sheet.png": "Recognizer crop contact sheet",
       "reading_order_words.png": "Word reading order",
@@ -437,6 +488,10 @@
       "reco_arch",
       "reco_preserve_aspect_ratio",
       "reco_symmetric_pad",
+      "split_wide_crops",
+      "crop_split_critical_ar",
+      "crop_split_target_ar",
+      "crop_split_overlap_ratio",
       "disable_crop_orientation",
       "bin_thresh",
       "box_thresh",
@@ -456,5 +511,5 @@
       "run_time": "run time"
     }
   },
-  "run": "python $bin/run_doctr.py --input \"$input_0\" --det-arch \"$det_arch\" --reco-arch \"$reco_arch\" --det-input-size \"$det_input_size\" --preserve-aspect-ratio \"$preserve_aspect_ratio\" --symmetric-pad \"$symmetric_pad\" --reco-preserve-aspect-ratio \"$reco_preserve_aspect_ratio\" --reco-symmetric-pad \"$reco_symmetric_pad\" --assume-straight-pages \"$assume_straight_pages\" --export-as-straight-boxes \"$export_as_straight_boxes\" --straighten-pages \"$straighten_pages\" --detect-orientation \"$detect_orientation\" --detect-language \"$detect_language\" --disable-page-orientation \"$disable_page_orientation\" --disable-crop-orientation \"$disable_crop_orientation\" --resolve-lines \"$resolve_lines\" --resolve-blocks \"$resolve_blocks\" --paragraph-break \"$paragraph_break\" --bin-thresh \"$bin_thresh\" --box-thresh \"$box_thresh\" --unclip-ratio \"$unclip_ratio\" --draw-labels \"$draw_labels\" --draw-confidence \"$draw_confidence\" --min-confidence-display \"$min_confidence_display\" --recognizer-sample-count \"$recognizer_sample_count\" --visualization-seed \"$visualization_seed\""
+  "run": "python $bin/run_doctr.py --input \"$input_0\" --det-arch \"$det_arch\" --reco-arch \"$reco_arch\" --det-input-size \"$det_input_size\" --preserve-aspect-ratio \"$preserve_aspect_ratio\" --symmetric-pad \"$symmetric_pad\" --reco-preserve-aspect-ratio \"$reco_preserve_aspect_ratio\" --reco-symmetric-pad \"$reco_symmetric_pad\" --split-wide-crops \"$split_wide_crops\" --crop-split-critical-ar \"$crop_split_critical_ar\" --crop-split-target-ar \"$crop_split_target_ar\" --crop-split-overlap-ratio \"$crop_split_overlap_ratio\" --assume-straight-pages \"$assume_straight_pages\" --export-as-straight-boxes \"$export_as_straight_boxes\" --straighten-pages \"$straighten_pages\" --detect-orientation \"$detect_orientation\" --detect-language \"$detect_language\" --disable-page-orientation \"$disable_page_orientation\" --disable-crop-orientation \"$disable_crop_orientation\" --resolve-lines \"$resolve_lines\" --resolve-blocks \"$resolve_blocks\" --paragraph-break \"$paragraph_break\" --bin-thresh \"$bin_thresh\" --box-thresh \"$box_thresh\" --unclip-ratio \"$unclip_ratio\" --draw-labels \"$draw_labels\" --draw-confidence \"$draw_confidence\" --min-confidence-display \"$min_confidence_display\" --recognizer-sample-count \"$recognizer_sample_count\" --visualization-seed \"$visualization_seed\""
 }
