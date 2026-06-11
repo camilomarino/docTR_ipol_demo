@@ -284,7 +284,7 @@
       "default": true,
       "default_value": true,
       "type": "checkbox",
-      "comments": "Write recognized word strings next to word boxes in overlay images. Code: visualization only, used by save_overlay(..., draw_labels=args.draw_labels, ...)."
+      "comments": "Write recognized word strings next to word boxes in overlay images."
     },
     {
       "id": "draw_confidence",
@@ -292,12 +292,12 @@
       "default": false,
       "default_value": false,
       "type": "checkbox",
-      "comments": "Append recognition confidence values to word labels in overlay images. Code: visualization only, used by save_overlay(..., draw_confidence=args.draw_confidence, ...)."
+      "comments": "Append recognition confidence values to word labels in overlay images."
     },
     {
       "id": "min_confidence_display",
       "label": "Minimum display confidence",
-      "comments": "Minimum recognition confidence for drawing a word in diagnostic overlays. Does not filter JSON, CSV, hOCR, or text outputs. Code: visualization only, used by save_overlay(..., min_confidence=args.min_confidence_display).",
+      "comments": "Minimum recognition confidence for drawing a word in diagnostic overlays. Does not filter JSON, CSV, hOCR, or text outputs.",
       "type": "range",
       "values": {
         "default": 0,
@@ -309,7 +309,7 @@
     {
       "id": "recognizer_sample_count",
       "label": "Recognizer crop samples",
-      "comments": "Number of word crops sampled for recognizer stack/contact-sheet visualizations. Does not change OCR results. Code: visualization only, used by sample_indices(len(crops), args.recognizer_sample_count, ...).",
+      "comments": "Number of word crops sampled for recognizer stack/contact-sheet visualizations. Does not change OCR results.",
       "type": "numeric",
       "values": {
         "default": 24,
@@ -321,7 +321,7 @@
     {
       "id": "visualization_seed",
       "label": "Visualization seed",
-      "comments": "Random seed used only to choose which detected word crops appear in recognizer diagnostic images. Code: visualization only, used by random.Random(args.visualization_seed) for crop sampling.",
+      "comments": "Random seed used only to choose which detected word crops appear in recognizer diagnostic images.",
       "type": "numeric",
       "values": {
         "default": 0,
