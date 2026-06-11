@@ -58,6 +58,7 @@
       "id": "preserve_aspect_ratio",
       "label": "Preserve detector aspect ratio",
       "default": true,
+      "default_value": true,
       "type": "checkbox",
       "comments": "Resize the page to fit inside the detector square without distorting it. If enabled and the page is not square, docTR adds padding; if disabled, the page is stretched. Maps to ocr_predictor(preserve_aspect_ratio=...). Code: ocr_predictor(preserve_aspect_ratio=args.preserve_aspect_ratio, ...)."
     },
@@ -65,6 +66,7 @@
       "id": "symmetric_pad",
       "label": "Detector symmetric padding",
       "default": true,
+      "default_value": true,
       "type": "checkbox",
       "comments": "Only applies when detector aspect ratio is preserved. If enabled, padding is split on both sides; if disabled, padding is added at the bottom/right. Maps to ocr_predictor(symmetric_pad=...). Code: ocr_predictor(symmetric_pad=args.symmetric_pad, ...)."
     },
@@ -72,6 +74,7 @@
       "id": "assume_straight_pages",
       "label": "Assume straight pages",
       "default": true,
+      "default_value": true,
       "type": "checkbox",
       "comments": "Use for normal scans/photos with horizontal text. Disable for rotated or skewed text regions; this may return polygon boxes and is slower. Code: ocr_predictor(assume_straight_pages=args.assume_straight_pages, ...)."
     },
@@ -79,6 +82,7 @@
       "id": "straighten_pages",
       "label": "Straighten pages",
       "default": false,
+      "default_value": false,
       "type": "checkbox",
       "comments": "Try to rotate the page into a straighter orientation before OCR. Can help uniformly rotated pages, but is slower. Code: ocr_predictor(straighten_pages=args.straighten_pages, ...)."
     },
@@ -86,6 +90,7 @@
       "id": "detect_orientation",
       "label": "Detect orientation",
       "default": false,
+      "default_value": false,
       "type": "checkbox",
       "comments": "Estimate and report page orientation in JSON. Mostly diagnostic unless combined with straightening. Code: ocr_predictor(detect_orientation=args.detect_orientation, ...)."
     },
@@ -93,6 +98,7 @@
       "id": "disable_page_orientation",
       "label": "Disable page orientation model",
       "default": false,
+      "default_value": false,
       "type": "checkbox",
       "comments": "Advanced diagnostic switch. It maps to ocr_predictor(disable_page_orientation=...). If enabled, docTR's page orientation predictor is replaced by a disabled predictor returning zero rotation. Code: ocr_predictor(disable_page_orientation=args.disable_page_orientation, ...)."
     },
@@ -119,6 +125,7 @@
       "id": "reco_preserve_aspect_ratio",
       "label": "Recognizer padding / preserve aspect ratio",
       "default": true,
+      "default_value": true,
       "type": "checkbox",
       "comments": "docTR recognizer crops are resized to the recognizer tensor while preserving aspect ratio by default. This modifies predictor.reco_predictor.pre_processor.resize.preserve_aspect_ratio. Code: predictor.reco_predictor.pre_processor.resize.preserve_aspect_ratio = args.reco_preserve_aspect_ratio."
     },
@@ -126,6 +133,7 @@
       "id": "reco_symmetric_pad",
       "label": "Recognizer symmetric padding",
       "default": false,
+      "default_value": false,
       "type": "checkbox",
       "comments": "When recognizer padding is enabled, pad word crops symmetrically instead of only at the bottom/right. This modifies predictor.reco_predictor.pre_processor.resize.symmetric_pad. Code: predictor.reco_predictor.pre_processor.resize.symmetric_pad = args.reco_symmetric_pad."
     },
@@ -133,6 +141,7 @@
       "id": "disable_crop_orientation",
       "label": "Disable crop orientation model",
       "default": false,
+      "default_value": false,
       "type": "checkbox",
       "comments": "Advanced diagnostic switch. It maps to ocr_predictor(disable_crop_orientation=...). It only matters when assume_straight_pages is disabled and crop rectification would otherwise use the crop orientation model. Code: ocr_predictor(disable_crop_orientation=args.disable_crop_orientation, ...)."
     },
@@ -180,6 +189,7 @@
       "id": "export_as_straight_boxes",
       "label": "Export straight boxes",
       "default": false,
+      "default_value": false,
       "type": "checkbox",
       "comments": "Convert rotated/polygon boxes into rectangular boxes in JSON and hOCR. Easier downstream, but loses exact rotated geometry. Code: ocr_predictor(export_as_straight_boxes=args.export_as_straight_boxes, ...)."
     },
@@ -187,6 +197,7 @@
       "id": "resolve_lines",
       "label": "Resolve lines",
       "default": true,
+      "default_value": true,
       "type": "checkbox",
       "comments": "Group detected words into text lines after recognition. Code: ocr_predictor(resolve_lines=args.resolve_lines, ...), forwarded to DocumentBuilder."
     },
@@ -194,6 +205,7 @@
       "id": "resolve_blocks",
       "label": "Resolve blocks",
       "default": false,
+      "default_value": false,
       "type": "checkbox",
       "comments": "Group resolved lines into larger text blocks or paragraph-like regions. Code: ocr_predictor(resolve_blocks=args.resolve_blocks, ...), forwarded to DocumentBuilder."
     },
@@ -213,6 +225,7 @@
       "id": "detect_language",
       "label": "Detect language",
       "default": false,
+      "default_value": false,
       "type": "checkbox",
       "comments": "Infer language from recognized text and store it in JSON. Does not change OCR predictions. Code: ocr_predictor(detect_language=args.detect_language, ...)."
     },
@@ -224,6 +237,7 @@
       "id": "draw_labels",
       "label": "Draw word labels",
       "default": true,
+      "default_value": true,
       "type": "checkbox",
       "comments": "Write recognized word strings next to word boxes in overlay images. Code: visualization only, used by save_overlay(..., draw_labels=args.draw_labels, ...)."
     },
@@ -231,6 +245,7 @@
       "id": "draw_confidence",
       "label": "Draw confidence",
       "default": false,
+      "default_value": false,
       "type": "checkbox",
       "comments": "Append recognition confidence values to word labels in overlay images. Code: visualization only, used by save_overlay(..., draw_confidence=args.draw_confidence, ...)."
     },

@@ -88,6 +88,10 @@ separate groups and keep names clear. Prefer `selection_radio` controls over
 free text for model names because the current IPOL client renders that format
 reliably.
 
+For checkbox defaults, keep both `default` and `default_value` with the same
+boolean value. The current IPOL client initializes checkbox state from
+`default_value`, while older examples and documentation use `default`.
+
 ## Detector and Recognizer Model Parameters
 
 ### `det_arch`
