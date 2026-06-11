@@ -31,7 +31,7 @@
       "label": "Text detector",
       "comments": "Selects the neural network used to localize text regions before recognition. FAST models are good CPU defaults; DBNet and LinkNet are useful for comparison.",
       "type": "selection collapsed",
-      "default_value": "fast_base",
+      "default": "fast_base",
       "values": {
         "FAST base": "fast_base",
         "FAST small": "fast_small",
@@ -47,7 +47,7 @@
       "label": "Text recognizer",
       "comments": "Selects the neural network used to read each detected word crop. CRNN models are faster; PARSeq and ViTSTR are heavier alternatives.",
       "type": "selection collapsed",
-      "default_value": "crnn_vgg16_bn",
+      "default": "crnn_vgg16_bn",
       "values": {
         "CRNN VGG16-BN": "crnn_vgg16_bn",
         "CRNN MobileNetV3 small": "crnn_mobilenet_v3_small",
@@ -65,7 +65,7 @@
       "label": "Detector input size",
       "comments": "Size, in pixels, of the square tensor sent to the text detector. Smaller values are faster but may miss small text; larger values cost more CPU and memory.",
       "type": "selection collapsed",
-      "default_value": "1024",
+      "default": "1024",
       "values": {
         "Model default": "model_default",
         "512": "512",
