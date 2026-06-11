@@ -231,7 +231,8 @@ input size.
 
 ### `preserve_aspect_ratio`
 
-Purpose: preserve aspect ratio while resizing before detector inference.
+Purpose: detector padding switch. Preserve aspect ratio while resizing before
+detector inference.
 
 DDL type: checkbox.
 
@@ -250,8 +251,8 @@ ocr_predictor(preserve_aspect_ratio=args.preserve_aspect_ratio, ...)
 
 ### `symmetric_pad`
 
-Purpose: if aspect ratio is preserved, pad symmetrically rather than only on one
-side.
+Purpose: detector symmetric padding. If detector aspect ratio is preserved, pad
+symmetrically rather than only on one side.
 
 DDL type: checkbox.
 
@@ -267,6 +268,46 @@ docTR mapping:
 
 ```python
 ocr_predictor(symmetric_pad=args.symmetric_pad, ...)
+```
+
+### `reco_preserve_aspect_ratio`
+
+Purpose: recognizer padding switch. Preserve aspect ratio while resizing word
+crops for the recognition network.
+
+DDL type: checkbox.
+
+Default: `true`, matching docTR's recognition preprocessor.
+
+User-facing explanation:
+
+> Resize word crops to the recognizer tensor without distorting the crop. If
+> disabled, crops are stretched to the recognizer input size.
+
+docTR mapping after predictor creation:
+
+```python
+predictor.reco_predictor.pre_processor.resize.preserve_aspect_ratio = args.reco_preserve_aspect_ratio
+```
+
+### `reco_symmetric_pad`
+
+Purpose: recognizer symmetric padding. If recognizer aspect ratio is preserved,
+pad word crops symmetrically rather than only at the bottom/right.
+
+DDL type: checkbox.
+
+Default: `false`, matching `recognition_predictor(..., symmetric_pad=False)`.
+
+User-facing explanation:
+
+> When recognizer padding is enabled, place padding on both sides of each word
+> crop instead of only after the crop content.
+
+docTR mapping after predictor creation:
+
+```python
+predictor.reco_predictor.pre_processor.resize.symmetric_pad = args.reco_symmetric_pad
 ```
 
 ## Geometry and Orientation Parameters
@@ -445,6 +486,35 @@ docTR mapping:
 ocr_predictor(detect_language=args.detect_language, ...)
 ```
 
+### `disable_page_orientation`
+
+Purpose: disable docTR's page orientation model for diagnostics.
+
+DDL type: checkbox.
+
+Default: `false`.
+
+docTR mapping:
+
+```python
+ocr_predictor(disable_page_orientation=args.disable_page_orientation, ...)
+```
+
+### `disable_crop_orientation`
+
+Purpose: disable docTR's crop orientation model for diagnostics when rotated
+crop rectification is active.
+
+DDL type: checkbox.
+
+Default: `false`.
+
+docTR mapping:
+
+```python
+ocr_predictor(disable_crop_orientation=args.disable_crop_orientation, ...)
+```
+
 Output impact:
 
 - `result.json` page object contains language value and confidence.
@@ -586,6 +656,27 @@ docTR mapping after predictor creation:
 
 ```python
 predictor.det_predictor.model.postprocessor.box_thresh = args.box_thresh
+```
+
+### `unclip_ratio`
+
+Purpose: detector box expansion ratio used by post-processing after connected
+components are extracted.
+
+DDL type: range.
+
+Default: `1.0`, matching the default `fast_base` OCR run.
+
+Suggested range:
+
+- min: `0.5`
+- max: `3.0`
+- step: `0.05`
+
+docTR mapping after predictor creation:
+
+```python
+predictor.det_predictor.model.postprocessor.unclip_ratio = args.unclip_ratio
 ```
 
 ## Batch and Runtime Parameters
@@ -770,11 +861,14 @@ This is the smallest useful set that still exposes the requested behavior:
 - `detect_language`
 - `preserve_aspect_ratio`
 - `symmetric_pad`
+- `reco_preserve_aspect_ratio`
+- `reco_symmetric_pad`
 - `resolve_lines`
 - `resolve_blocks`
 - `paragraph_break`
 - `bin_thresh`
 - `box_thresh`
+- `unclip_ratio`
 - `det_bs`
 - `reco_bs`
 - `draw_labels`
@@ -783,10 +877,11 @@ This is the smallest useful set that still exposes the requested behavior:
 - `recognizer_sample_count`
 - `visualization_seed`
 
-Optional first-version extras:
-
 - `disable_page_orientation`
 - `disable_crop_orientation`
+
+Optional first-version extras:
+
 - `overlay_line_width`
 
 ## Output Files

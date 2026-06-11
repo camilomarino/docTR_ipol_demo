@@ -93,16 +93,21 @@ docker run --rm -v /tmp/doctr-ipol-out:/workdir/exec -w /workdir/exec doctr-ipol
   --det-input-size model_default \
   --preserve-aspect-ratio true \
   --symmetric-pad true \
+  --reco-preserve-aspect-ratio true \
+  --reco-symmetric-pad false \
   --assume-straight-pages true \
   --export-as-straight-boxes false \
   --straighten-pages false \
   --detect-orientation false \
   --detect-language false \
+  --disable-page-orientation false \
+  --disable-crop-orientation false \
   --resolve-lines true \
   --resolve-blocks false \
   --paragraph-break 0.035 \
   --bin-thresh 0.1 \
   --box-thresh 0.1 \
+  --unclip-ratio 1.0 \
   --det-bs 2 \
   --reco-bs 128 \
   --draw-labels true \

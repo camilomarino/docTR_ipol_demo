@@ -59,16 +59,21 @@ PARAMETER_EFFECTS = {
     "det_input_size": "If not 'model_default', applied after model construction as predictor.det_predictor.pre_processor.resize.size = (size, size). The default leaves docTR unchanged.",
     "preserve_aspect_ratio": "Passed to doctr.models.ocr_predictor(preserve_aspect_ratio=...). docTR forwards it to the detector preprocessor resize transform.",
     "symmetric_pad": "Passed to doctr.models.ocr_predictor(symmetric_pad=...). docTR forwards it to the detector preprocessor resize transform.",
+    "reco_preserve_aspect_ratio": "Applied after model construction as predictor.reco_predictor.pre_processor.resize.preserve_aspect_ratio. docTR's recognizer default is True.",
+    "reco_symmetric_pad": "Applied after model construction as predictor.reco_predictor.pre_processor.resize.symmetric_pad. docTR's recognizer default is False.",
     "assume_straight_pages": "Passed to doctr.models.ocr_predictor(assume_straight_pages=...). It controls straight boxes versus rotated crop preparation.",
     "export_as_straight_boxes": "Passed to doctr.models.ocr_predictor(export_as_straight_boxes=...). It is used by docTR's DocumentBuilder during export.",
     "straighten_pages": "Passed to doctr.models.ocr_predictor(straighten_pages=...). When enabled, docTR estimates orientation and runs detection again on straightened pages.",
     "detect_orientation": "Passed to doctr.models.ocr_predictor(detect_orientation=...). It adds page orientation metadata to the exported document.",
     "detect_language": "Passed to doctr.models.ocr_predictor(detect_language=...). It adds language metadata from recognized text.",
+    "disable_page_orientation": "Passed to doctr.models.ocr_predictor(disable_page_orientation=...). It disables the page orientation predictor while preserving docTR's pipeline shape.",
+    "disable_crop_orientation": "Passed to doctr.models.ocr_predictor(disable_crop_orientation=...). It disables crop orientation prediction when rotated crop rectification is active.",
     "resolve_lines": "Passed through ocr_predictor(..., resolve_lines=...) to docTR's DocumentBuilder.",
     "resolve_blocks": "Passed through ocr_predictor(..., resolve_blocks=...) to docTR's DocumentBuilder.",
     "paragraph_break": "Passed through ocr_predictor(..., paragraph_break=...) to docTR's DocumentBuilder line/block grouping.",
     "bin_thresh": "Applied after model construction as predictor.det_predictor.model.postprocessor.bin_thresh. It thresholds the detector response map.",
     "box_thresh": "Applied after model construction as predictor.det_predictor.model.postprocessor.box_thresh. It filters detector boxes by score.",
+    "unclip_ratio": "Applied after model construction as predictor.det_predictor.model.postprocessor.unclip_ratio when available. It controls detector box expansion.",
     "det_bs": "Passed to doctr.models.ocr_predictor(det_bs=...). docTR uses it as detector preprocessor batch size.",
     "reco_bs": "Passed to doctr.models.ocr_predictor(reco_bs=...). docTR uses it as recognizer preprocessor batch size.",
     "draw_labels": "Visualization-only. It does not affect docTR inference or JSON outputs.",
@@ -154,16 +159,21 @@ def normalize_args(args: argparse.Namespace) -> argparse.Namespace:
     args.det_input_size = empty_to(args.det_input_size, "model_default")
     args.preserve_aspect_ratio = coerce_bool(args.preserve_aspect_ratio, True)
     args.symmetric_pad = coerce_bool(args.symmetric_pad, True)
+    args.reco_preserve_aspect_ratio = coerce_bool(args.reco_preserve_aspect_ratio, True)
+    args.reco_symmetric_pad = coerce_bool(args.reco_symmetric_pad, False)
     args.assume_straight_pages = coerce_bool(args.assume_straight_pages, True)
     args.export_as_straight_boxes = coerce_bool(args.export_as_straight_boxes, False)
     args.straighten_pages = coerce_bool(args.straighten_pages, False)
     args.detect_orientation = coerce_bool(args.detect_orientation, False)
     args.detect_language = coerce_bool(args.detect_language, False)
+    args.disable_page_orientation = coerce_bool(args.disable_page_orientation, False)
+    args.disable_crop_orientation = coerce_bool(args.disable_crop_orientation, False)
     args.resolve_lines = coerce_bool(args.resolve_lines, True)
     args.resolve_blocks = coerce_bool(args.resolve_blocks, False)
     args.paragraph_break = coerce_float(args.paragraph_break, 0.035)
     args.bin_thresh = coerce_float(args.bin_thresh, 0.1)
     args.box_thresh = coerce_float(args.box_thresh, 0.1)
+    args.unclip_ratio = coerce_float(args.unclip_ratio, 1.0)
     args.det_bs = coerce_int(args.det_bs, 2)
     args.reco_bs = coerce_int(args.reco_bs, 128)
     args.draw_labels = coerce_bool(args.draw_labels, True)
@@ -182,16 +192,21 @@ def parse_args() -> argparse.Namespace:
     add_optional_value(parser, "--det-input-size", "model_default")
     add_optional_value(parser, "--preserve-aspect-ratio", True)
     add_optional_value(parser, "--symmetric-pad", True)
+    add_optional_value(parser, "--reco-preserve-aspect-ratio", True)
+    add_optional_value(parser, "--reco-symmetric-pad", False)
     add_optional_value(parser, "--assume-straight-pages", True)
     add_optional_value(parser, "--export-as-straight-boxes", False)
     add_optional_value(parser, "--straighten-pages", False)
     add_optional_value(parser, "--detect-orientation", False)
     add_optional_value(parser, "--detect-language", False)
+    add_optional_value(parser, "--disable-page-orientation", False)
+    add_optional_value(parser, "--disable-crop-orientation", False)
     add_optional_value(parser, "--resolve-lines", True)
     add_optional_value(parser, "--resolve-blocks", False)
     add_optional_value(parser, "--paragraph-break", 0.035)
     add_optional_value(parser, "--bin-thresh", 0.1)
     add_optional_value(parser, "--box-thresh", 0.1)
+    add_optional_value(parser, "--unclip-ratio", 1.0)
     add_optional_value(parser, "--det-bs", 2)
     add_optional_value(parser, "--reco-bs", 128)
     add_optional_value(parser, "--draw-labels", True)
@@ -739,7 +754,8 @@ def build_predictor(args: argparse.Namespace) -> Any:
     # DDL model/runtime/geometry/structure parameters that docTR accepts at construction time.
     # det_arch, reco_arch, preserve_aspect_ratio, symmetric_pad, assume_straight_pages,
     # export_as_straight_boxes, straighten_pages, detect_orientation, detect_language,
-    # det_bs, reco_bs, resolve_lines, resolve_blocks, and paragraph_break are passed here.
+    # disable_page_orientation, disable_crop_orientation, det_bs, reco_bs,
+    # resolve_lines, resolve_blocks, and paragraph_break are passed here.
     predictor = ocr_predictor(
         det_arch=args.det_arch,
         reco_arch=args.reco_arch,
@@ -751,6 +767,8 @@ def build_predictor(args: argparse.Namespace) -> Any:
         detect_orientation=args.detect_orientation,
         straighten_pages=args.straighten_pages,
         detect_language=args.detect_language,
+        disable_page_orientation=args.disable_page_orientation,
+        disable_crop_orientation=args.disable_crop_orientation,
         det_bs=args.det_bs,
         reco_bs=args.reco_bs,
         resolve_lines=args.resolve_lines,
@@ -764,10 +782,18 @@ def build_predictor(args: argparse.Namespace) -> Any:
         size = int(args.det_input_size)
         predictor.det_predictor.pre_processor.resize.size = (size, size)
 
+    # DDL recognizer preprocessing parameters. docTR's public ocr_predictor()
+    # does not expose these directly, but they are the recognizer Resize fields
+    # created by recognition_predictor().
+    predictor.reco_predictor.pre_processor.resize.preserve_aspect_ratio = args.reco_preserve_aspect_ratio
+    predictor.reco_predictor.pre_processor.resize.symmetric_pad = args.reco_symmetric_pad
+
     # DDL detection post-processing parameters. docTR stores both thresholds on
     # the detector model postprocessor, so they are applied after construction.
     predictor.det_predictor.model.postprocessor.bin_thresh = args.bin_thresh
     predictor.det_predictor.model.postprocessor.box_thresh = args.box_thresh
+    if hasattr(predictor.det_predictor.model.postprocessor, "unclip_ratio"):
+        predictor.det_predictor.model.postprocessor.unclip_ratio = args.unclip_ratio
     return predictor
 
 
@@ -778,16 +804,21 @@ def selected_params(args: argparse.Namespace) -> dict[str, Any]:
         "det_input_size": args.det_input_size,
         "preserve_aspect_ratio": args.preserve_aspect_ratio,
         "symmetric_pad": args.symmetric_pad,
+        "reco_preserve_aspect_ratio": args.reco_preserve_aspect_ratio,
+        "reco_symmetric_pad": args.reco_symmetric_pad,
         "assume_straight_pages": args.assume_straight_pages,
         "export_as_straight_boxes": args.export_as_straight_boxes,
         "straighten_pages": args.straighten_pages,
         "detect_orientation": args.detect_orientation,
         "detect_language": args.detect_language,
+        "disable_page_orientation": args.disable_page_orientation,
+        "disable_crop_orientation": args.disable_crop_orientation,
         "resolve_lines": args.resolve_lines,
         "resolve_blocks": args.resolve_blocks,
         "paragraph_break": args.paragraph_break,
         "bin_thresh": args.bin_thresh,
         "box_thresh": args.box_thresh,
+        "unclip_ratio": args.unclip_ratio,
         "det_bs": args.det_bs,
         "reco_bs": args.reco_bs,
         "draw_labels": args.draw_labels,
