@@ -390,10 +390,13 @@
         "Boxes sent to recognizer": {
           "img": "detector_word_boxes.png"
         },
+        "Recognizer split overlay": {
+          "img": "recognizer_split_overlay.png"
+        },
         "Raw word crops": {
           "img": "recognizer_raw_crops_stack.png"
         },
-        "Wide crop splitting": {
+        "Split crop details": {
           "img": "recognizer_split_crops.png"
         },
         "Network input crops": {
@@ -462,6 +465,7 @@
       "detector_binary_map.png": "Binarized detector response",
       "detector_components.png": "Detector components",
       "detector_word_boxes.png": "Detector word boxes",
+      "recognizer_split_overlay.png": "Recognizer split overlay",
       "recognizer_raw_crops_stack.png": "Raw recognizer crops",
       "recognizer_split_crops.png": "Recognizer wide-crop splitting",
       "recognizer_input_crops_stack.png": "Recognizer network inputs",

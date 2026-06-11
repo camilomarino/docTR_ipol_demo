@@ -31,6 +31,7 @@ OUTPUT_IMAGE_FILES = [
     "detector_binary_map.png",
     "detector_components.png",
     "detector_word_boxes.png",
+    "recognizer_split_overlay.png",
     "recognizer_raw_crops_stack.png",
     "recognizer_split_crops.png",
     "recognizer_input_crops_stack.png",
@@ -640,6 +641,102 @@ def network_crop_sample(crop_map: list[Any], original_indices: list[int], max_it
     return pairs[:max_items]
 
 
+def split_priority_indices(total: int, count: int, seed: int, crop_map: list[Any]) -> list[int]:
+    if total <= 0 or count <= 0:
+        return []
+    split_indices = [idx for idx, item in enumerate(crop_map[:total]) if not isinstance(item, int)]
+    if len(split_indices) >= count:
+        return sorted(split_indices[:count])
+    chosen = list(split_indices)
+    remaining = [idx for idx in sample_indices(total, total, seed) if idx not in set(chosen)]
+    chosen.extend(remaining[: count - len(chosen)])
+    return sorted(chosen)
+
+
+def interpolate_point(a: tuple[int, int], b: tuple[int, int], t: float) -> tuple[int, int]:
+    return (int(round(a[0] + (b[0] - a[0]) * t)), int(round(a[1] + (b[1] - a[1]) * t)))
+
+
+def draw_split_lines_in_box(
+    draw: ImageDraw.ImageDraw,
+    points: list[tuple[int, int]],
+    crop: np.ndarray,
+    target_ar: int,
+    overlap_ratio: float,
+) -> None:
+    if len(points) < 4 or crop.shape[1] <= 0:
+        return
+    starts = split_start_columns(crop, target_ar, overlap_ratio)
+    split_width_px = max(1, math.ceil(crop.shape[0] * target_ar))
+    boundaries: list[float] = []
+    for start in starts:
+        boundaries.extend(
+            [
+                max(0.0, min(1.0, start / crop.shape[1])),
+                max(0.0, min(1.0, min(start + split_width_px, crop.shape[1]) / crop.shape[1])),
+            ]
+        )
+    for t in sorted(set(round(value, 4) for value in boundaries)):
+        top = interpolate_point(points[0], points[1], t)
+        bottom = interpolate_point(points[3], points[2], t)
+        draw.line([top, bottom], fill=(220, 30, 30), width=2)
+
+
+def save_recognizer_split_overlay(
+    path: str,
+    detector_canvas: np.ndarray,
+    original_page_shape: tuple[int, int],
+    boxes: np.ndarray,
+    crops: list[np.ndarray],
+    crop_map: list[Any],
+    predictor: Any,
+    preserve_aspect_ratio: bool,
+    symmetric_pad: bool,
+) -> None:
+    if len(crops) == 0:
+        save_placeholder(path, "Recognizer crop splitting overlay", "No word crops were detected.")
+        return
+
+    image = Image.fromarray(detector_canvas.copy())
+    draw = ImageDraw.Draw(image)
+    content_rect = detector_content_rect(original_page_shape, detector_canvas.shape[:2], preserve_aspect_ratio, symmetric_pad)
+    original_page_size = (original_page_shape[1], original_page_shape[0])
+    reco_predictor = predictor.reco_predictor
+
+    for idx, box in enumerate(np.asarray(boxes)):
+        if idx >= len(crops) or idx >= len(crop_map):
+            break
+        points = scale_points_to_rect(geometry_to_points(box), content_rect, original_page_size, image.size)
+        if not points:
+            continue
+        item = crop_map[idx]
+        is_split = not isinstance(item, int)
+        color = (220, 30, 30) if is_split else (47, 140, 70)
+        width = 3 if is_split else 1
+        draw.line(points + [points[0]], fill=color, width=width)
+        if is_split:
+            start, end, _ = item
+            draw_split_lines_in_box(draw, points, crops[idx], reco_predictor.target_ar, reco_predictor.overlap_ratio)
+            label = f"{idx + 1}: split x{end - start}"
+            x = min(point[0] for point in points)
+            y = min(point[1] for point in points)
+            text_pos = (x + 2, max(0, y - 13))
+            draw.rectangle(
+                [text_pos[0] - 1, text_pos[1] - 1, text_pos[0] + min(150, 6 * len(label)) + 4, text_pos[1] + 12],
+                fill=(255, 255, 255),
+            )
+            draw.text(text_pos, label, fill=color, font=font())
+
+    split_count = sum(1 for item in crop_map[: len(crops)] if not isinstance(item, int))
+    header = (
+        f"recognizer split_wide_crops={reco_predictor.split_wide_crops}, "
+        f"critical_ar={reco_predictor.critical_ar:g}; red boxes are split ({split_count}/{len(crops)})"
+    )
+    draw.rectangle([0, 0, min(image.width - 1, 760), 20], fill=(255, 255, 255))
+    draw.text((6, 5), header[:120], fill=(30, 30, 30), font=font())
+    image.save(path)
+
+
 def save_recognizer_split_diagnostics(
     path: str,
     crops: list[np.ndarray],
@@ -1221,7 +1318,19 @@ def write_outputs(args: argparse.Namespace, input_page: np.ndarray, predictor: A
     raw_crops = flatten_pages_crops(diagnostics["raw_crops"])
     final_crops = flatten_pages_crops(diagnostics["final_crops"])
     split_network_crops, split_crop_map, split_remapped = recognizer_split_plan(predictor, final_crops)
-    indices = sample_indices(len(final_crops), args.recognizer_sample_count, args.visualization_seed)
+    recognizer_boxes = diagnostics["boxes"][0] if diagnostics["boxes"] else np.empty((0, 4))
+    save_recognizer_split_overlay(
+        "recognizer_split_overlay.png",
+        detector_preview,
+        ocr_page.shape[:2],
+        recognizer_boxes,
+        final_crops,
+        split_crop_map,
+        predictor,
+        predictor.det_predictor.pre_processor.resize.preserve_aspect_ratio,
+        predictor.det_predictor.pre_processor.resize.symmetric_pad,
+    )
+    indices = split_priority_indices(len(final_crops), args.recognizer_sample_count, args.visualization_seed, split_crop_map)
     sampled_raw = [raw_crops[index] for index in indices if index < len(raw_crops)]
     network_pairs = network_crop_sample(split_crop_map, indices, max(args.recognizer_sample_count, 1))
     sampled_network_source = [split_network_crops[split_idx] for split_idx, _ in network_pairs if split_idx < len(split_network_crops)]
@@ -1240,6 +1349,7 @@ def write_outputs(args: argparse.Namespace, input_page: np.ndarray, predictor: A
         "detector_boxes": diagnostics["detector_boxes"],
         "detector_objectness_scores": diagnostics["detector_scores"],
         "sampled_crop_indices": indices,
+        "recognizer_boxes": recognizer_boxes,
         "recognizer_split_wide_crops": predictor.reco_predictor.split_wide_crops,
         "recognizer_split_remap_required": split_remapped,
         "recognizer_split_crop_map": split_crop_map,
@@ -1251,6 +1361,7 @@ def write_outputs(args: argparse.Namespace, input_page: np.ndarray, predictor: A
         "diagnostic_notes": {
             "detector_probability_map": "First channel of the detector response map.",
             "detector_binary_map": f"Detector response thresholded at bin_thresh={args.bin_thresh}.",
+            "recognizer_split_overlay": "Shows the same boxes sent to the recognizer and marks boxes split by docTR split_wide_crops in red.",
             "recognizer_split_crops": "For sampled detector crops, shows the crop sent to the recognizer and any sub-crops created by docTR split_wide_crops before recognition.",
             "recognizer_input_crops_stack": "Sampled crops after docTR recognizer preprocessing and denormalization for display.",
         },

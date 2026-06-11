@@ -328,6 +328,8 @@ predictor.reco_predictor.split_wide_crops = args.split_wide_crops
 
 Diagnostic output: `recognizer_split_crops.png` shows the original recognizer
 crop, the split boundaries, and the sub-crops sent to the recognition network.
+`recognizer_split_overlay.png` shows the same recognizer boxes on the detector
+canvas and marks split boxes in red.
 
 ### `crop_split_critical_ar`
 
@@ -825,6 +827,8 @@ Implementation:
 - use the same sampled indices in `recognizer_raw_crops_stack.png`,
   `recognizer_split_crops.png`, `recognizer_input_crops_stack.png`, and
   `recognizer_crops_contact_sheet.png`.
+- prioritize crops that are actually split by `split_wide_crops`, then fill the
+  remaining slots with deterministic random crops.
 - when `split_wide_crops` creates multiple network crops from one detector
   crop, `recognizer_input_crops_stack.png` and
   `recognizer_crops_contact_sheet.png` show the post-split network inputs.
@@ -1002,6 +1006,24 @@ Sampling policy:
 - fixed seed, e.g. `0`, for reproducibility;
 - maximum `recognizer_sample_count`, default `24`;
 - if there are fewer crops, show all crops.
+
+Display: gallery.
+
+Archive: yes.
+
+#### `recognizer_split_overlay.png`
+
+Page-level overlay on the same detector diagnostic canvas as
+`detector_word_boxes.png`.
+
+This image is the bridge between detector and recognizer:
+
+- green boxes are recognizer crops kept as single crops;
+- red boxes are recognizer crops split by `split_wide_crops`;
+- red internal lines show the horizontal sub-crop boundaries used before
+  recognizer preprocessing;
+- labels on red boxes show how many network crops are created from one detector
+  crop.
 
 Display: gallery.
 
@@ -1396,8 +1418,9 @@ Recommended result blocks:
     "label": "<h3>Recognizer inputs and crop post-processing</h3>",
     "contents": {
       "Boxes sent to recognizer": { "img": "detector_word_boxes.png" },
+      "Recognizer split overlay": { "img": "recognizer_split_overlay.png" },
       "Raw word crops": { "img": "recognizer_raw_crops_stack.png" },
-      "Wide crop splitting": { "img": "recognizer_split_crops.png" },
+      "Split crop details": { "img": "recognizer_split_crops.png" },
       "Network input crops": { "img": "recognizer_input_crops_stack.png" },
       "Crop contact sheet": { "img": "recognizer_crops_contact_sheet.png" }
     }
@@ -1459,6 +1482,7 @@ Archive files:
 - `detector_binary_map.png`: Binarized detector response
 - `detector_components.png`: Detector components
 - `detector_word_boxes.png`: Detector word boxes
+- `recognizer_split_overlay.png`: Recognizer split overlay
 - `recognizer_raw_crops_stack.png`: Raw sampled recognizer crops
 - `recognizer_split_crops.png`: Recognizer wide-crop splitting
 - `recognizer_input_crops_stack.png`: Sampled crops as sent to recognizer

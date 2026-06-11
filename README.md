@@ -32,6 +32,7 @@ them, including placeholders for empty detections:
 - `detector_binary_map.png`
 - `detector_components.png`
 - `detector_word_boxes.png`
+- `recognizer_split_overlay.png`
 - `recognizer_raw_crops_stack.png`
 - `recognizer_split_crops.png`
 - `recognizer_input_crops_stack.png`
