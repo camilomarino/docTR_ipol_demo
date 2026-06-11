@@ -92,6 +92,10 @@ For checkbox defaults, keep both `default` and `default_value` with the same
 boolean value. The current IPOL client initializes checkbox state from
 `default_value`, while older examples and documentation use `default`.
 
+For numeric parameters, include `values.step` even though the DDL examples do
+not require it. The current IPOL client writes that field directly into the
+HTML input `step` attribute.
+
 ## Detector and Recognizer Model Parameters
 
 ### `det_arch`

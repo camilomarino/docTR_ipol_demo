@@ -51,7 +51,8 @@
       "values": {
         "default": 1024,
         "max": 8192,
-        "min": 1
+        "min": 1,
+        "step": 1
       }
     },
     {
@@ -269,7 +270,8 @@
       "values": {
         "default": 24,
         "max": 64,
-        "min": 1
+        "min": 1,
+        "step": 1
       }
     },
     {
@@ -280,7 +282,8 @@
       "values": {
         "default": 0,
         "max": 999999,
-        "min": 0
+        "min": 0,
+        "step": 1
       }
     }
   ],
@@ -362,25 +365,25 @@
     },
     {
       "type": "text_file",
-      "label": "<h3>Reading Order</h3>",
+      "label": "Reading Order",
       "contents": "result.txt",
       "style": "{'width':'100%','height':'18em','white-space':'pre-wrap'}"
     },
     {
       "type": "text_file",
-      "label": "<h3>Raw docTR JSON</h3>",
+      "label": "Raw docTR JSON",
       "contents": "result_raw_doctr.json",
       "style": "{'width':'100%','height':'24em','white-space':'pre-wrap'}"
     },
     {
       "type": "text_file",
-      "label": "<h3>Run summary</h3>",
+      "label": "Run summary",
       "contents": "summary.txt",
       "style": "{'width':'100%','height':'14em','white-space':'pre-wrap'}"
     },
     {
       "type": "file_download",
-      "label": "<h3>Download structured outputs</h3>",
+      "label": "Download structured outputs",
       "contents": {
         "JSON": "result.json",
         "Raw docTR JSON": "result_raw_doctr.json",
