@@ -18,7 +18,8 @@
       "max_weight": "25*1024*1024",
       "dtype": "3x8i",
       "ext": ".png",
-      "type": "image"
+      "type": "image",
+      "required": true
     }
   ],
   "params": [

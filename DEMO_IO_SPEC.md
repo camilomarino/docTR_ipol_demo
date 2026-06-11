@@ -41,7 +41,8 @@ DDL input:
   "max_weight": "25*1024*1024",
   "dtype": "3x8i",
   "ext": ".png",
-  "type": "image"
+  "type": "image",
+  "required": true
 }
 ```
 
@@ -50,6 +51,7 @@ Recommended defaults:
 - `type`: `image`
 - `dtype`: `3x8i`
 - `ext`: `.png`
+- `required`: `true`
 - `max_pixels`: `3000*3000` for the first version.
 - `max_weight`: optional, around `25*1024*1024`.
 
