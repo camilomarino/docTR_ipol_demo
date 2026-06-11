@@ -14,7 +14,6 @@ OCR results and intermediate diagnostic visualizations.
   straightening, orientation metadata, and language metadata.
 - Structure post-processing: line grouping, block grouping, and paragraph gap.
 - Detection thresholds: binarization threshold and box score threshold.
-- Runtime batch sizes for detector and recognizer.
 - Visualization controls for labels, confidence display, and sampled crops.
 
 The demo intentionally does not expose `page_max_side`; scale is controlled by
@@ -108,8 +107,6 @@ docker run --rm -v /tmp/doctr-ipol-out:/workdir/exec -w /workdir/exec doctr-ipol
   --bin-thresh 0.1 \
   --box-thresh 0.1 \
   --unclip-ratio 1.0 \
-  --det-bs 2 \
-  --reco-bs 128 \
   --draw-labels true \
   --draw-confidence false \
   --min-confidence-display 0 \

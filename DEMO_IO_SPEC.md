@@ -87,7 +87,7 @@ IPOL has no native collapsible advanced section, so use `label` parameters to
 separate groups and keep names clear. Prefer `selection` controls over free text
 for model names.
 
-## Model Parameters
+## Detector and Recognizer Model Parameters
 
 ### `det_arch`
 
@@ -185,7 +185,7 @@ docTR mapping:
 ocr_predictor(reco_arch=args.reco_arch, ...)
 ```
 
-## Image Size and Preprocessing Parameters
+## Detector and Recognizer Preprocessing Parameters
 
 ### `det_input_size`
 
@@ -310,7 +310,7 @@ docTR mapping after predictor creation:
 predictor.reco_predictor.pre_processor.resize.symmetric_pad = args.reco_symmetric_pad
 ```
 
-## Geometry and Orientation Parameters
+## Detector Geometry and Orientation Parameters
 
 ### `assume_straight_pages`
 
@@ -486,41 +486,12 @@ docTR mapping:
 ocr_predictor(detect_language=args.detect_language, ...)
 ```
 
-### `disable_page_orientation`
-
-Purpose: disable docTR's page orientation model for diagnostics.
-
-DDL type: checkbox.
-
-Default: `false`.
-
-docTR mapping:
-
-```python
-ocr_predictor(disable_page_orientation=args.disable_page_orientation, ...)
-```
-
-### `disable_crop_orientation`
-
-Purpose: disable docTR's crop orientation model for diagnostics when rotated
-crop rectification is active.
-
-DDL type: checkbox.
-
-Default: `false`.
-
-docTR mapping:
-
-```python
-ocr_predictor(disable_crop_orientation=args.disable_crop_orientation, ...)
-```
-
 Output impact:
 
 - `result.json` page object contains language value and confidence.
 - `summary.txt` should report language.
 
-## Document Structure Parameters
+## Post-processing Structure Parameters
 
 ### `resolve_lines`
 
@@ -604,7 +575,7 @@ ocr_predictor(paragraph_break=args.paragraph_break, ...)
 Visibility: useful when `resolve_lines=true`; more meaningful with
 `resolve_blocks=true`.
 
-## Detection Post-processing Parameters
+## Post-processing Detection Parameters
 
 ### `bin_thresh`
 
@@ -678,59 +649,6 @@ docTR mapping after predictor creation:
 ```python
 predictor.det_predictor.model.postprocessor.unclip_ratio = args.unclip_ratio
 ```
-
-## Batch and Runtime Parameters
-
-### `det_bs`
-
-Purpose: detection batch size.
-
-DDL type: numeric.
-
-Default: `2`, matching docTR's `ocr_predictor()` default.
-
-User-facing explanation:
-
-> Number of pages processed at once by the detector. With a single image input
-> this mostly remains a reproducibility/runtime knob; `1` is safest on IPOL CPU.
-
-Suggested range:
-
-- min: `1`
-- max: `4`
-
-docTR mapping:
-
-```python
-ocr_predictor(det_bs=args.det_bs, ...)
-```
-
-### `reco_bs`
-
-Purpose: recognition batch size.
-
-DDL type: numeric.
-
-Default: `128`.
-
-User-facing explanation:
-
-> Number of detected word crops recognized at once. Larger values can be faster
-> but use more memory; smaller values are safer for very dense pages.
-
-Suggested range:
-
-- min: `1`
-- max: `256`
-
-docTR mapping:
-
-```python
-ocr_predictor(reco_bs=args.reco_bs, ...)
-```
-
-First version decision: expose both `det_bs` and `reco_bs` in the DDL because
-they are reasonable runtime controls for OCR experiments.
 
 ## Visualization Parameters
 
@@ -869,8 +787,6 @@ This is the smallest useful set that still exposes the requested behavior:
 - `bin_thresh`
 - `box_thresh`
 - `unclip_ratio`
-- `det_bs`
-- `reco_bs`
 - `draw_labels`
 - `draw_confidence`
 - `min_confidence_display`
@@ -1510,7 +1426,8 @@ The model lists in this document and the preload script must stay synchronized.
 
 - Do not expose `page_max_side`; use `det_input_size` instead.
 - Expose `det_input_size` in the first DDL.
-- Expose `det_bs` and `reco_bs` in the first DDL.
+- Do not expose runtime batch sizes in the first DDL; keep `det_bs=2` and
+  `reco_bs=128` as internal docTR defaults.
 - Add hOCR support in the first version.
 - Use `max_pixels: "3000*3000"` for the first version.
 - Omit `processed_input.png` when no wrapper-level preprocessing is applied.
