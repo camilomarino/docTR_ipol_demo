@@ -53,6 +53,31 @@ OUTPUT_TEXT_FILES = [
     "hocr_error.txt",
 ]
 
+PARAMETER_EFFECTS = {
+    "det_arch": "Passed to doctr.models.ocr_predictor(det_arch=...). It selects the detection model before any inference.",
+    "reco_arch": "Passed to doctr.models.ocr_predictor(reco_arch=...). It selects the recognition model before any inference.",
+    "det_input_size": "If not 'model_default', applied after model construction as predictor.det_predictor.pre_processor.resize.size = (size, size). The default leaves docTR unchanged.",
+    "preserve_aspect_ratio": "Passed to doctr.models.ocr_predictor(preserve_aspect_ratio=...). docTR forwards it to the detector preprocessor resize transform.",
+    "symmetric_pad": "Passed to doctr.models.ocr_predictor(symmetric_pad=...). docTR forwards it to the detector preprocessor resize transform.",
+    "assume_straight_pages": "Passed to doctr.models.ocr_predictor(assume_straight_pages=...). It controls straight boxes versus rotated crop preparation.",
+    "export_as_straight_boxes": "Passed to doctr.models.ocr_predictor(export_as_straight_boxes=...). It is used by docTR's DocumentBuilder during export.",
+    "straighten_pages": "Passed to doctr.models.ocr_predictor(straighten_pages=...). When enabled, docTR estimates orientation and runs detection again on straightened pages.",
+    "detect_orientation": "Passed to doctr.models.ocr_predictor(detect_orientation=...). It adds page orientation metadata to the exported document.",
+    "detect_language": "Passed to doctr.models.ocr_predictor(detect_language=...). It adds language metadata from recognized text.",
+    "resolve_lines": "Passed through ocr_predictor(..., resolve_lines=...) to docTR's DocumentBuilder.",
+    "resolve_blocks": "Passed through ocr_predictor(..., resolve_blocks=...) to docTR's DocumentBuilder.",
+    "paragraph_break": "Passed through ocr_predictor(..., paragraph_break=...) to docTR's DocumentBuilder line/block grouping.",
+    "bin_thresh": "Applied after model construction as predictor.det_predictor.model.postprocessor.bin_thresh. It thresholds the detector response map.",
+    "box_thresh": "Applied after model construction as predictor.det_predictor.model.postprocessor.box_thresh. It filters detector boxes by score.",
+    "det_bs": "Passed to doctr.models.ocr_predictor(det_bs=...). docTR uses it as detector preprocessor batch size.",
+    "reco_bs": "Passed to doctr.models.ocr_predictor(reco_bs=...). docTR uses it as recognizer preprocessor batch size.",
+    "draw_labels": "Visualization-only. It does not affect docTR inference or JSON outputs.",
+    "draw_confidence": "Visualization-only. It does not affect docTR inference or JSON outputs.",
+    "min_confidence_display": "Visualization-only. It hides low-confidence words in overlays but never filters JSON, CSV, hOCR, or reading order text.",
+    "recognizer_sample_count": "Visualization-only. It selects how many recognized crops are shown in diagnostic stack/contact-sheet images.",
+    "visualization_seed": "Visualization-only. It seeds random crop sampling for diagnostic images.",
+}
+
 CSV_HEADER = [
     "page",
     "block",
@@ -126,7 +151,7 @@ def add_optional_value(parser: argparse.ArgumentParser, flag: str, default: Any)
 def normalize_args(args: argparse.Namespace) -> argparse.Namespace:
     args.det_arch = empty_to(args.det_arch, "fast_base")
     args.reco_arch = empty_to(args.reco_arch, "crnn_vgg16_bn")
-    args.det_input_size = empty_to(args.det_input_size, "1024")
+    args.det_input_size = empty_to(args.det_input_size, "model_default")
     args.preserve_aspect_ratio = coerce_bool(args.preserve_aspect_ratio, True)
     args.symmetric_pad = coerce_bool(args.symmetric_pad, True)
     args.assume_straight_pages = coerce_bool(args.assume_straight_pages, True)
@@ -137,9 +162,9 @@ def normalize_args(args: argparse.Namespace) -> argparse.Namespace:
     args.resolve_lines = coerce_bool(args.resolve_lines, True)
     args.resolve_blocks = coerce_bool(args.resolve_blocks, False)
     args.paragraph_break = coerce_float(args.paragraph_break, 0.035)
-    args.bin_thresh = coerce_float(args.bin_thresh, 0.5)
-    args.box_thresh = coerce_float(args.box_thresh, 0.5)
-    args.det_bs = coerce_int(args.det_bs, 1)
+    args.bin_thresh = coerce_float(args.bin_thresh, 0.1)
+    args.box_thresh = coerce_float(args.box_thresh, 0.1)
+    args.det_bs = coerce_int(args.det_bs, 2)
     args.reco_bs = coerce_int(args.reco_bs, 128)
     args.draw_labels = coerce_bool(args.draw_labels, True)
     args.draw_confidence = coerce_bool(args.draw_confidence, False)
@@ -154,7 +179,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input", required=True)
     add_optional_value(parser, "--det-arch", "fast_base")
     add_optional_value(parser, "--reco-arch", "crnn_vgg16_bn")
-    add_optional_value(parser, "--det-input-size", "1024")
+    add_optional_value(parser, "--det-input-size", "model_default")
     add_optional_value(parser, "--preserve-aspect-ratio", True)
     add_optional_value(parser, "--symmetric-pad", True)
     add_optional_value(parser, "--assume-straight-pages", True)
@@ -165,9 +190,9 @@ def parse_args() -> argparse.Namespace:
     add_optional_value(parser, "--resolve-lines", True)
     add_optional_value(parser, "--resolve-blocks", False)
     add_optional_value(parser, "--paragraph-break", 0.035)
-    add_optional_value(parser, "--bin-thresh", 0.5)
-    add_optional_value(parser, "--box-thresh", 0.5)
-    add_optional_value(parser, "--det-bs", 1)
+    add_optional_value(parser, "--bin-thresh", 0.1)
+    add_optional_value(parser, "--box-thresh", 0.1)
+    add_optional_value(parser, "--det-bs", 2)
     add_optional_value(parser, "--reco-bs", 128)
     add_optional_value(parser, "--draw-labels", True)
     add_optional_value(parser, "--draw-confidence", False)
@@ -711,6 +736,10 @@ def run_pipeline(predictor: Any, pages: list[np.ndarray]) -> tuple[Document, dic
 
 
 def build_predictor(args: argparse.Namespace) -> Any:
+    # DDL model/runtime/geometry/structure parameters that docTR accepts at construction time.
+    # det_arch, reco_arch, preserve_aspect_ratio, symmetric_pad, assume_straight_pages,
+    # export_as_straight_boxes, straighten_pages, detect_orientation, detect_language,
+    # det_bs, reco_bs, resolve_lines, resolve_blocks, and paragraph_break are passed here.
     predictor = ocr_predictor(
         det_arch=args.det_arch,
         reco_arch=args.reco_arch,
@@ -729,9 +758,14 @@ def build_predictor(args: argparse.Namespace) -> Any:
         paragraph_break=args.paragraph_break,
     )
 
+    # DDL detector preprocessing parameter. The docTR default path is to leave
+    # predictor.det_predictor.pre_processor.resize.size untouched.
     if args.det_input_size != "model_default":
         size = int(args.det_input_size)
         predictor.det_predictor.pre_processor.resize.size = (size, size)
+
+    # DDL detection post-processing parameters. docTR stores both thresholds on
+    # the detector model postprocessor, so they are applied after construction.
     predictor.det_predictor.model.postprocessor.bin_thresh = args.bin_thresh
     predictor.det_predictor.model.postprocessor.box_thresh = args.box_thresh
     return predictor
@@ -815,6 +849,9 @@ def write_summary(
     text.extend(["", "Parameters:"])
     for key, value in selected_params(args).items():
         text.append(f"- {key}: {value}")
+    text.extend(["", "How parameters are applied:"])
+    for key in selected_params(args):
+        text.append(f"- {key}: {PARAMETER_EFFECTS[key]}")
     Path("summary.txt").write_text("\n".join(text) + "\n", encoding="utf-8")
 
 
@@ -909,6 +946,7 @@ def write_outputs(args: argparse.Namespace, input_page: np.ndarray, predictor: A
             "output_files": OUTPUT_IMAGE_FILES + OUTPUT_TEXT_FILES,
         },
         "parameters": selected_params(args),
+        "parameter_effects": PARAMETER_EFFECTS,
         "counts": {
             "pages": len(export_pages(document_export)),
             "words": len(rows),

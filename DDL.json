@@ -31,7 +31,7 @@
       "label": "Text detector",
       "comments": "Selects the neural network used to localize text regions before recognition. FAST models are good CPU defaults; DBNet and LinkNet are useful for comparison.",
       "type": "selection collapsed",
-      "default": "fast_base",
+      "default_value": "fast_base",
       "values": {
         "FAST base": "fast_base",
         "FAST small": "fast_small",
@@ -47,7 +47,7 @@
       "label": "Text recognizer",
       "comments": "Selects the neural network used to read each detected word crop. CRNN models are faster; PARSeq and ViTSTR are heavier alternatives.",
       "type": "selection collapsed",
-      "default": "crnn_vgg16_bn",
+      "default_value": "crnn_vgg16_bn",
       "values": {
         "CRNN VGG16-BN": "crnn_vgg16_bn",
         "CRNN MobileNetV3 small": "crnn_mobilenet_v3_small",
@@ -63,9 +63,9 @@
     {
       "id": "det_input_size",
       "label": "Detector input size",
-      "comments": "Size, in pixels, of the square tensor sent to the text detector. Smaller values are faster but may miss small text; larger values cost more CPU and memory.",
+      "comments": "Size, in pixels, of the square tensor sent to the text detector. The default leaves docTR's selected detector preprocessing unchanged. Smaller values are faster but may miss small text; larger values cost more CPU and memory.",
       "type": "selection collapsed",
-      "default": "1024",
+      "default_value": "model_default",
       "values": {
         "Model default": "model_default",
         "512": "512",
@@ -168,9 +168,9 @@
       "comments": "Threshold applied to the detector probability map before extracting candidate text components.",
       "type": "range",
       "values": {
-        "default": 0.5,
+        "default": 0.1,
         "max": 0.95,
-        "min": 0.05,
+        "min": 0.01,
         "step": 0.01
       }
     },
@@ -180,9 +180,9 @@
       "comments": "Minimum score required to keep a detected text box after detector post-processing.",
       "type": "range",
       "values": {
-        "default": 0.5,
+        "default": 0.1,
         "max": 0.95,
-        "min": 0.05,
+        "min": 0.01,
         "step": 0.01
       }
     },
@@ -193,10 +193,10 @@
     {
       "id": "det_bs",
       "label": "Detector batch size",
-      "comments": "Number of pages processed at once by the detector. With one image input, 1 is safest on IPOL CPU.",
+      "comments": "Number of pages processed at once by the detector. docTR's default is 2; with one image input, this does not change the OCR result.",
       "type": "numeric",
       "values": {
-        "default": 1,
+        "default": 2,
         "max": 4,
         "min": 1
       }
@@ -328,7 +328,7 @@
     },
     {
       "type": "gallery",
-      "label": "<h3>Reading order and grouping</h3>",
+      "label": "<h3>Document structure diagnostics</h3>",
       "contents": {
         "Word reading order": {
           "img": "reading_order_words.png"
@@ -343,9 +343,15 @@
     },
     {
       "type": "text_file",
-      "label": "<h3>Recognized text</h3>",
+      "label": "<h3>Reading Order</h3>",
       "contents": "result.txt",
       "style": "{'width':'100%','height':'18em','white-space':'pre-wrap'}"
+    },
+    {
+      "type": "text_file",
+      "label": "<h3>Raw docTR JSON</h3>",
+      "contents": "result_raw_doctr.json",
+      "style": "{'width':'100%','height':'24em','white-space':'pre-wrap'}"
     },
     {
       "type": "text_file",
@@ -363,7 +369,7 @@
         "hOCR status": "hocr_error.txt",
         "Words CSV": "words.csv",
         "Structure debug JSON": "structure_debug.json",
-        "Text": "result.txt",
+        "Reading Order": "result.txt",
         "Summary": "summary.txt"
       }
     }
@@ -394,7 +400,7 @@
       "hocr_error.txt": "hOCR status",
       "structure_debug.json": "Structure debug JSON",
       "words.csv": "Word table",
-      "result.txt": "Recognized text",
+      "result.txt": "Reading order",
       "summary.txt": "Summary"
     },
     "params": [

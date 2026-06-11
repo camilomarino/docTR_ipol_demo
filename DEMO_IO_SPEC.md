@@ -199,10 +199,12 @@ Recommended values:
   config. For most docTR text detectors this is `1024 x 1024`.
 - `512`
 - `768`
-- `1024` default for the demo if we want a single comparable default across
-  detector architectures.
+- `1024`
 - `1280`
 - `1536`
+
+Default: `model_default`, so the first run matches `ocr_predictor()` without
+manual preprocessing overrides.
 
 User-facing explanation:
 
@@ -540,7 +542,7 @@ Purpose: threshold for detector binarization map.
 
 DDL type: range.
 
-Default: `0.5`.
+Default: `0.1`, matching docTR's `fast_base` detector postprocessor default.
 
 User-facing explanation:
 
@@ -550,7 +552,7 @@ User-facing explanation:
 
 Suggested range:
 
-- min: `0.05`
+- min: `0.01`
 - max: `0.95`
 - step: `0.01`
 
@@ -566,7 +568,7 @@ Purpose: threshold for keeping detected boxes.
 
 DDL type: range.
 
-Default: `0.5`.
+Default: `0.1`, matching docTR's `fast_base` detector postprocessor default.
 
 User-facing explanation:
 
@@ -576,7 +578,7 @@ User-facing explanation:
 
 Suggested range:
 
-- min: `0.05`
+- min: `0.01`
 - max: `0.95`
 - step: `0.01`
 
@@ -594,7 +596,7 @@ Purpose: detection batch size.
 
 DDL type: numeric.
 
-Default: `1` for IPOL CPU stability.
+Default: `2`, matching docTR's `ocr_predictor()` default.
 
 User-facing explanation:
 
@@ -1253,7 +1255,7 @@ Recommended result blocks:
   },
   {
     "type": "gallery",
-    "label": "<h3>Reading order and grouping</h3>",
+    "label": "<h3>Document structure diagnostics</h3>",
     "contents": {
       "Word reading order": { "img": "reading_order_words.png" },
       "Line grouping": { "img": "line_grouping.png" },
@@ -1262,9 +1264,15 @@ Recommended result blocks:
   },
   {
     "type": "text_file",
-    "label": "<h3>Recognized text</h3>",
+    "label": "<h3>Reading Order</h3>",
     "contents": "result.txt",
     "style": "{'width':'100%','height':'18em','white-space':'pre-wrap'}"
+  },
+  {
+    "type": "text_file",
+    "label": "<h3>Raw docTR JSON</h3>",
+    "contents": "result_raw_doctr.json",
+    "style": "{'width':'100%','height':'24em','white-space':'pre-wrap'}"
   },
   {
     "type": "text_file",
@@ -1281,7 +1289,7 @@ Recommended result blocks:
       "hOCR": "result.hocr",
       "Words CSV": "words.csv",
       "Structure debug JSON": "structure_debug.json",
-      "Text": "result.txt"
+      "Reading Order": "result.txt"
     }
   }
 ]
@@ -1316,7 +1324,7 @@ Archive files:
 - `result_raw_doctr.json`: Raw docTR JSON
 - `structure_debug.json`: Detector/crop/line/block diagnostic JSON
 - `words.csv`: Word table
-- `result.txt`: Recognized text
+- `result.txt`: Reading order
 - `summary.txt`: Summary
 - `result.hocr`: hOCR
 - `hocr_error.txt`: hOCR error explanation, if generated

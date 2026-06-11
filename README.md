@@ -90,7 +90,7 @@ docker run --rm -v /tmp/doctr-ipol-out:/workdir/exec -w /workdir/exec doctr-ipol
   --input input_0.png \
   --det-arch fast_base \
   --reco-arch crnn_vgg16_bn \
-  --det-input-size 1024 \
+  --det-input-size model_default \
   --preserve-aspect-ratio true \
   --symmetric-pad true \
   --assume-straight-pages true \
@@ -101,9 +101,9 @@ docker run --rm -v /tmp/doctr-ipol-out:/workdir/exec -w /workdir/exec doctr-ipol
   --resolve-lines true \
   --resolve-blocks false \
   --paragraph-break 0.035 \
-  --bin-thresh 0.5 \
-  --box-thresh 0.5 \
-  --det-bs 1 \
+  --bin-thresh 0.1 \
+  --box-thresh 0.1 \
+  --det-bs 2 \
   --reco-bs 128 \
   --draw-labels true \
   --draw-confidence false \
