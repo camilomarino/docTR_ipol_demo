@@ -1,5 +1,5 @@
 # use one of the images from this repository: https://github.com/ipol-journal/ipol-docker-images/
-FROM registry.ipol.im/ipol:v2-py3.11-pytorch
+FROM registry.ipol.im/ipol:v2-py3.11-pytorch-gpu
 
 
 # install additional debian packages

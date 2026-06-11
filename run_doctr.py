@@ -1169,7 +1169,7 @@ def build_predictor(args: argparse.Namespace) -> Any:
         if hasattr(predictor.det_predictor.model.postprocessor, "unclip_ratio"):
             predictor.det_predictor.model.postprocessor.unclip_ratio = args.unclip_ratio
     predictor.ipol_detector_postprocessor_applied = detector_postprocessor_state(predictor)
-    return predictor
+    return move_predictor_to_runtime_device(predictor)
 
 
 def detector_postprocessor_state(predictor: Any) -> dict[str, Any]:
@@ -1192,6 +1192,38 @@ def detector_postprocessor_report(args: argparse.Namespace, predictor: Any) -> d
         "model_defaults": getattr(predictor, "ipol_detector_postprocessor_defaults", detector_postprocessor_state(predictor)),
         "applied": getattr(predictor, "ipol_detector_postprocessor_applied", detector_postprocessor_state(predictor)),
     }
+
+
+def runtime_info() -> dict[str, Any]:
+    info: dict[str, Any] = {
+        "torch_version": torch.__version__,
+        "cuda_available": torch.cuda.is_available(),
+        "cuda_device_count": torch.cuda.device_count() if torch.cuda.is_available() else 0,
+        "device": "cuda" if torch.cuda.is_available() else "cpu",
+        "gpu_name": None,
+    }
+    if torch.cuda.is_available():
+        try:
+            info["cuda_current_device"] = torch.cuda.current_device()
+            info["gpu_name"] = torch.cuda.get_device_name(0)
+        except Exception as exc:  # noqa: BLE001
+            info["cuda_probe_error"] = str(exc)
+    return info
+
+
+def move_predictor_to_runtime_device(predictor: Any) -> Any:
+    info = runtime_info()
+    target_device = torch.device(info["device"])
+    try:
+        predictor.to(target_device)
+    except Exception as exc:  # noqa: BLE001
+        if info["device"] != "cuda":
+            raise
+        info["cuda_move_error"] = str(exc)
+        info["device"] = "cpu"
+        predictor.to(torch.device("cpu"))
+    predictor.ipol_runtime = info
+    return predictor
 
 
 def selected_params(args: argparse.Namespace) -> dict[str, Any]:
@@ -1251,6 +1283,7 @@ def write_summary(
     ocr_shape: tuple[int, int, int],
     rows: list[dict[str, Any]],
     document_export: dict[str, Any],
+    runtime: dict[str, Any],
     detector_postprocessor: dict[str, Any],
     timings: dict[str, float],
     hocr_status: str,
@@ -1266,6 +1299,9 @@ def write_summary(
         f"OCR page shape: {ocr_shape[1]}x{ocr_shape[0]}",
         f"Detector: {args.det_arch}",
         f"Recognizer: {args.reco_arch}",
+        f"Runtime device: {runtime.get('device')}",
+        f"CUDA available: {runtime.get('cuda_available')}",
+        f"GPU: {runtime.get('gpu_name')}",
         f"Detector input size: {args.det_input_size}",
         f"Detector threshold mode: {detector_postprocessor['mode']}",
         f"Detector thresholds applied: {detector_postprocessor['applied']}",
@@ -1302,6 +1338,7 @@ def crop_labels(indices: list[int], word_preds: list[tuple[str, float]]) -> list
 
 def write_outputs(args: argparse.Namespace, input_page: np.ndarray, predictor: Any) -> None:
     timings: dict[str, float] = {}
+    runtime = getattr(predictor, "ipol_runtime", runtime_info())
 
     start = perf_counter()
     document, diagnostics = run_pipeline(predictor, [input_page])
@@ -1411,7 +1448,7 @@ def write_outputs(args: argparse.Namespace, input_page: np.ndarray, predictor: A
     full_result = {
         "metadata": {
             "demo": "docTR IPOL demo",
-            "runtime": "CPU",
+            "runtime": runtime,
             "input_file": str(args.input),
             "input_shape": input_page.shape,
             "ocr_page_shape": ocr_page.shape,
@@ -1433,7 +1470,7 @@ def write_outputs(args: argparse.Namespace, input_page: np.ndarray, predictor: A
         "doctr": document_export,
     }
     save_json("result.json", full_result)
-    write_summary(args, input_page.shape, ocr_page.shape, rows, document_export, detector_postprocessor, timings, hocr_status)
+    write_summary(args, input_page.shape, ocr_page.shape, rows, document_export, runtime, detector_postprocessor, timings, hocr_status)
 
 
 def write_failure_outputs(args: argparse.Namespace, exc: BaseException) -> None:

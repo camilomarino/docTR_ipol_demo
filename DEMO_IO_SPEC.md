@@ -6,17 +6,18 @@ constraints that should guide the first public version.
 
 ## Scope
 
-Goal: expose a reproducible CPU-first docTR OCR demo for one uploaded document
-image, with configurable model choices, geometry/orientation options,
-post-processing thresholds, document-structure options, and downloadable OCR
-results.
+Goal: expose a reproducible docTR OCR demo for one uploaded document image,
+with configurable model choices, geometry/orientation options, post-processing
+thresholds, document-structure options, and downloadable OCR results.
 
 Initial target:
 
 - one image input, converted by IPOL to `input_0.png`;
 - the DDL `run` command passes that input as `$input_0`, which IPOL resolves to
   the execution-directory path before running the container command;
-- PyTorch CPU execution in `registry.ipol.im/ipol:v2-py3.11-pytorch`;
+- PyTorch GPU-capable execution in
+  `registry.ipol.im/ipol:v2-py3.11-pytorch-gpu`;
+- automatic CUDA use when the IPOL runner exposes a GPU, with CPU fallback;
 - pretrained docTR models downloaded during Docker build;
 - fixed output filenames in `/workdir/exec`;
 - no runtime network dependency.
@@ -24,7 +25,6 @@ Initial target:
 Out of scope for the first version:
 
 - arbitrary custom weights uploaded by users;
-- GPU execution;
 - multi-page PDF input;
 - training/fine-tuning;
 - free-form model names typed by the user;
@@ -1246,6 +1246,11 @@ Recommended top-level shape:
       "detector_input_filename": "detector_input.png",
       "detector_input_size": [0, 0]
     },
+    "runtime": {
+      "device": "cuda",
+      "cuda_available": true,
+      "gpu_name": "..."
+    },
     "diagnostics": {
       "detector_probability_map": "detector_probability_map.png",
       "detector_binary_map": "detector_binary_map.png",
@@ -1294,7 +1299,7 @@ Human-readable run summary:
 - input dimensions and detector input dimensions;
 - counts;
 - detected orientation/language if enabled;
-- runtime.
+- runtime device and GPU availability.
 
 Display: `text_file`.
 

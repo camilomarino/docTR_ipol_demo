@@ -59,12 +59,13 @@ them, including placeholders for empty detections:
 
 ## Docker/IPOL behavior
 
-The Docker image is based on `registry.ipol.im/ipol:v2-py3.11-pytorch` and
+The Docker image is based on `registry.ipol.im/ipol:v2-py3.11-pytorch-gpu` and
 installs `python-doctr==1.0.1`. Model weights are downloaded during image build
 by `preload_models.py` into `DOCTR_CACHE_DIR=/home/ipol/.cache/doctr`.
 
 The runtime path is offline-friendly: it uses `pretrained=True`, but the
-weights should already be present in the image.
+weights should already be present in the image. At runtime the runner uses CUDA
+automatically when IPOL exposes a GPU, and falls back to CPU otherwise.
 
 ## Local smoke test
 
