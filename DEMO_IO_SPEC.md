@@ -84,8 +84,9 @@ Do not add this in the first version unless we also solve:
 ## Parameter Groups
 
 IPOL has no native collapsible advanced section, so use `label` parameters to
-separate groups and keep names clear. Prefer `selection collapsed` controls over
-free text for model names because IPOL renders them as dropdown selectors.
+separate groups and keep names clear. Prefer `selection_radio` controls over
+free text for model names because the current IPOL client renders that format
+reliably.
 
 ## Detector and Recognizer Model Parameters
 
@@ -93,7 +94,7 @@ free text for model names because IPOL renders them as dropdown selectors.
 
 Purpose: choose text detection architecture.
 
-DDL type: selection collapsed.
+DDL type: selection_radio.
 
 User-facing explanation:
 
@@ -142,7 +143,7 @@ ocr_predictor(det_arch=args.det_arch, ...)
 
 Purpose: choose text recognition architecture.
 
-DDL type: selection collapsed.
+DDL type: selection_radio.
 
 User-facing explanation:
 
@@ -191,7 +192,7 @@ ocr_predictor(reco_arch=args.reco_arch, ...)
 
 Purpose: set the square image size used by docTR's detector preprocessor.
 
-DDL type: selection collapsed.
+DDL type: selection_radio.
 
 Recommended values:
 

@@ -30,7 +30,7 @@
       "id": "det_arch",
       "label": "Text detector",
       "comments": "Selects the neural network used to localize text regions before recognition. FAST models are good CPU defaults; DBNet and LinkNet are useful for comparison. Code: ocr_predictor(det_arch=args.det_arch, ...).",
-      "type": "selection collapsed",
+      "type": "selection_radio",
       "default_value": "fast_base",
       "values": {
         "FAST base": "fast_base",
@@ -40,13 +40,14 @@
         "DBNet ResNet-34": "db_resnet34",
         "DBNet MobileNetV3 large": "db_mobilenet_v3_large",
         "LinkNet ResNet-18": "linknet_resnet18"
-      }
+      },
+      "vertical": true
     },
     {
       "id": "det_input_size",
       "label": "Detector input size",
       "comments": "Size, in pixels, of the square tensor sent to the text detector. The default leaves docTR's selected detector preprocessing unchanged. Smaller values are faster but may miss small text; larger values cost more CPU and memory. Code: if not model_default, predictor.det_predictor.pre_processor.resize.size = (size, size).",
-      "type": "selection collapsed",
+      "type": "selection_radio",
       "default_value": "model_default",
       "values": {
         "Model default": "model_default",
@@ -55,7 +56,8 @@
         "1024": "1024",
         "1280": "1280",
         "1536": "1536"
-      }
+      },
+      "vertical": true
     },
     {
       "id": "preserve_aspect_ratio",
@@ -107,7 +109,7 @@
       "id": "reco_arch",
       "label": "Text recognizer",
       "comments": "Selects the neural network used to read each detected word crop. CRNN models are faster; PARSeq and ViTSTR are heavier alternatives. Code: ocr_predictor(reco_arch=args.reco_arch, ...).",
-      "type": "selection collapsed",
+      "type": "selection_radio",
       "default_value": "crnn_vgg16_bn",
       "values": {
         "CRNN VGG16-BN": "crnn_vgg16_bn",
@@ -115,7 +117,8 @@
         "CRNN MobileNetV3 large": "crnn_mobilenet_v3_large",
         "PARSeq": "parseq",
         "ViTSTR small": "vitstr_small"
-      }
+      },
+      "vertical": true
     },
     {
       "id": "reco_preserve_aspect_ratio",
