@@ -319,6 +319,31 @@ def scale_points(points: list[tuple[float, float]], size: tuple[int, int]) -> li
     return [(max(0, min(width - 1, x)), max(0, min(height - 1, y))) for x, y in scaled]
 
 
+def scale_points_to_rect(
+    points: list[tuple[float, float]],
+    content_rect: tuple[int, int, int, int],
+    original_page_size: tuple[int, int],
+    canvas_size: tuple[int, int],
+) -> list[tuple[int, int]]:
+    if not points:
+        return []
+    left, top, content_width, content_height = content_rect
+    original_width, original_height = original_page_size
+    canvas_width, canvas_height = canvas_size
+    max_abs = max(max(abs(x), abs(y)) for x, y in points)
+    scaled = []
+    for x, y in points:
+        if max_abs <= 2.0:
+            rel_x, rel_y = x, y
+        else:
+            rel_x = x / max(original_width, 1)
+            rel_y = y / max(original_height, 1)
+        canvas_x = int(round(left + rel_x * content_width))
+        canvas_y = int(round(top + rel_y * content_height))
+        scaled.append((max(0, min(canvas_width - 1, canvas_x)), max(0, min(canvas_height - 1, canvas_y))))
+    return scaled
+
+
 def bbox_from_points(points: list[tuple[float, float]]) -> tuple[float, float, float, float] | None:
     if not points:
         return None
@@ -360,6 +385,67 @@ def draw_geometry(
             fill=(255, 255, 255),
         )
         draw.text(text_pos, label[:60], fill=color, font=font())
+
+
+def draw_geometry_in_rect(
+    draw: ImageDraw.ImageDraw,
+    geometry: Any,
+    content_rect: tuple[int, int, int, int],
+    original_page_size: tuple[int, int],
+    canvas_size: tuple[int, int],
+    color: tuple[int, int, int],
+    width: int = 2,
+    label: str | None = None,
+) -> None:
+    points = scale_points_to_rect(geometry_to_points(geometry), content_rect, original_page_size, canvas_size)
+    if not points:
+        return
+    draw.line(points + [points[0]], fill=color, width=width)
+    if label:
+        x = min(point[0] for point in points)
+        y = min(point[1] for point in points)
+        text_pos = (x + 2, max(0, y - 12))
+        draw.rectangle(
+            [text_pos[0] - 1, text_pos[1] - 1, text_pos[0] + min(360, 6 * len(label)) + 4, text_pos[1] + 12],
+            fill=(255, 255, 255),
+        )
+        draw.text(text_pos, label[:60], fill=color, font=font())
+
+
+def detector_content_rect(
+    page_shape: tuple[int, int],
+    target_shape: tuple[int, int],
+    preserve_aspect_ratio: bool,
+    symmetric_pad: bool,
+) -> tuple[int, int, int, int]:
+    page_height, page_width = page_shape
+    target_height, target_width = target_shape
+    target_ratio = target_height / max(target_width, 1)
+    actual_ratio = page_height / max(page_width, 1)
+    if not preserve_aspect_ratio or abs(target_ratio - actual_ratio) < 1e-9:
+        return 0, 0, target_width, target_height
+    if actual_ratio > target_ratio:
+        content_height = target_height
+        content_width = max(int(target_height / actual_ratio), 1)
+    else:
+        content_height = max(int(target_width * actual_ratio), 1)
+        content_width = target_width
+    pad_width = target_width - content_width
+    pad_height = target_height - content_height
+    if symmetric_pad:
+        left = int(math.ceil(pad_width / 2))
+        top = int(math.ceil(pad_height / 2))
+    else:
+        left = 0
+        top = 0
+    return left, top, content_width, content_height
+
+
+def resize_to_shape(image: np.ndarray, target_shape: tuple[int, int], interpolation: int = cv2.INTER_AREA) -> np.ndarray:
+    target_height, target_width = target_shape
+    if image.shape[:2] == (target_height, target_width):
+        return image
+    return cv2.resize(image, (target_width, target_height), interpolation=interpolation)
 
 
 def primary_map(out_map: Any) -> np.ndarray:
@@ -626,7 +712,7 @@ def save_block_grouping(path: str, page: np.ndarray, document_export: dict[str, 
     image.save(path)
 
 
-def save_detector_components(path: str, prob_map: np.ndarray, threshold: float) -> None:
+def save_detector_components(path: str, prob_map: np.ndarray, threshold: float, target_shape: tuple[int, int]) -> None:
     binary = binary_map(prob_map, threshold)
     num_labels, labels = cv2.connectedComponents(binary)
     output = np.ones((*labels.shape, 3), dtype=np.uint8) * 255
@@ -636,17 +722,28 @@ def save_detector_components(path: str, prob_map: np.ndarray, threshold: float) 
         output[labels == label_idx] = color
     contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cv2.drawContours(output, contours, -1, (0, 0, 0), 1)
+    output = resize_to_shape(output, target_shape, cv2.INTER_NEAREST)
     save_rgb(path, output)
 
 
-def save_detector_word_boxes(path: str, page: np.ndarray, boxes: np.ndarray, objectness_scores: np.ndarray | None) -> None:
-    image = Image.fromarray(page.copy())
+def save_detector_word_boxes(
+    path: str,
+    detector_canvas: np.ndarray,
+    original_page_shape: tuple[int, int],
+    boxes: np.ndarray,
+    objectness_scores: np.ndarray | None,
+    preserve_aspect_ratio: bool,
+    symmetric_pad: bool,
+) -> None:
+    image = Image.fromarray(detector_canvas.copy())
     draw = ImageDraw.Draw(image)
+    content_rect = detector_content_rect(original_page_shape, detector_canvas.shape[:2], preserve_aspect_ratio, symmetric_pad)
+    original_page_size = (original_page_shape[1], original_page_shape[0])
     for idx, box in enumerate(np.asarray(boxes)):
         label = str(idx + 1)
         if objectness_scores is not None and idx < len(objectness_scores):
             label = f"{idx + 1}:{float(objectness_scores[idx]):.2f}"
-        draw_geometry(draw, box, image.size, (47, 140, 70), 2, label)
+        draw_geometry_in_rect(draw, box, content_rect, original_page_size, image.size, (47, 140, 70), 2, label)
     image.save(path)
 
 
@@ -906,15 +1003,24 @@ def write_outputs(args: argparse.Namespace, input_page: np.ndarray, predictor: A
     start = perf_counter()
     detector_preview = detector_input_preview(predictor.det_predictor.pre_processor, ocr_page)
     save_rgb("detector_input.png", detector_preview)
+    detector_target_shape = detector_preview.shape[:2]
 
     prob_map = primary_map(diagnostics["out_maps"][0])
-    save_rgb("detector_probability_map.png", heatmap_rgb(prob_map))
-    save_rgb("detector_binary_map.png", binary_map(prob_map, args.bin_thresh))
-    save_detector_components("detector_components.png", prob_map, args.bin_thresh)
+    save_rgb("detector_probability_map.png", resize_to_shape(heatmap_rgb(prob_map), detector_target_shape, cv2.INTER_LINEAR))
+    save_rgb("detector_binary_map.png", resize_to_shape(binary_map(prob_map, args.bin_thresh), detector_target_shape, cv2.INTER_NEAREST))
+    save_detector_components("detector_components.png", prob_map, args.bin_thresh, detector_target_shape)
 
     detector_boxes = diagnostics["detector_boxes"][0] if diagnostics["detector_boxes"] else np.empty((0, 4))
     detector_scores = diagnostics["detector_scores"][0] if diagnostics["detector_scores"] else None
-    save_detector_word_boxes("detector_word_boxes.png", ocr_page, detector_boxes, detector_scores)
+    save_detector_word_boxes(
+        "detector_word_boxes.png",
+        detector_preview,
+        ocr_page.shape[:2],
+        detector_boxes,
+        detector_scores,
+        predictor.det_predictor.pre_processor.resize.preserve_aspect_ratio,
+        predictor.det_predictor.pre_processor.resize.symmetric_pad,
+    )
     timings["diagnostic_images_detector"] = perf_counter() - start
 
     document_export = document.export()

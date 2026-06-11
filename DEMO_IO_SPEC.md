@@ -827,6 +827,9 @@ Archive: yes.
 Continuous detector response map before binarization. This is the closest
 visualization to the raw detector output exposed by docTR.
 
+For side-by-side comparison, save this image with the same pixel dimensions as
+`detector_input.png`.
+
 For multi-channel detector maps, save:
 
 - the primary text/objectness channel as the default image;
@@ -839,6 +842,9 @@ Archive: yes.
 #### `detector_binary_map.png`
 
 Detector response after applying `bin_thresh`.
+
+For side-by-side comparison, save this image with the same pixel dimensions as
+`detector_input.png`.
 
 Purpose:
 
@@ -854,6 +860,9 @@ Archive: yes.
 Connected components or contours extracted from `detector_binary_map.png`,
 overlaid on the detector input.
 
+For side-by-side comparison, save this image with the same pixel dimensions as
+`detector_input.png`.
+
 Purpose:
 
 - make detector post-processing visible before final box filtering;
@@ -865,8 +874,10 @@ Archive: yes.
 
 #### `detector_word_boxes.png`
 
-Post-processed detector boxes overlaid on the original input coordinate system,
-before recognition.
+Post-processed detector boxes, before recognition, overlaid on the detector
+diagnostic canvas. The page content is mapped into the same padded/resized
+layout as `detector_input.png` so all detector-panel images have matching
+dimensions.
 
 This is the key bridge between detection and recognition:
 
