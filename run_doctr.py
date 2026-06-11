@@ -87,32 +87,94 @@ def str2bool(value: Any) -> bool:
     raise argparse.ArgumentTypeError(f"invalid boolean value: {value!r}")
 
 
+def empty_to(value: Any, default: Any) -> Any:
+    if value is None:
+        return default
+    if isinstance(value, str) and value.strip() == "":
+        return default
+    return value
+
+
+def coerce_bool(value: Any, default: bool) -> bool:
+    value = empty_to(value, default)
+    try:
+        return str2bool(value)
+    except argparse.ArgumentTypeError:
+        return default
+
+
+def coerce_float(value: Any, default: float) -> float:
+    value = empty_to(value, default)
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def coerce_int(value: Any, default: int) -> int:
+    value = empty_to(value, default)
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def add_optional_value(parser: argparse.ArgumentParser, flag: str, default: Any) -> None:
+    parser.add_argument(flag, nargs="?", default=default, const="")
+
+
+def normalize_args(args: argparse.Namespace) -> argparse.Namespace:
+    args.det_arch = empty_to(args.det_arch, "fast_base")
+    args.reco_arch = empty_to(args.reco_arch, "crnn_vgg16_bn")
+    args.det_input_size = empty_to(args.det_input_size, "1024")
+    args.preserve_aspect_ratio = coerce_bool(args.preserve_aspect_ratio, True)
+    args.symmetric_pad = coerce_bool(args.symmetric_pad, True)
+    args.assume_straight_pages = coerce_bool(args.assume_straight_pages, True)
+    args.export_as_straight_boxes = coerce_bool(args.export_as_straight_boxes, False)
+    args.straighten_pages = coerce_bool(args.straighten_pages, False)
+    args.detect_orientation = coerce_bool(args.detect_orientation, False)
+    args.detect_language = coerce_bool(args.detect_language, False)
+    args.resolve_lines = coerce_bool(args.resolve_lines, True)
+    args.resolve_blocks = coerce_bool(args.resolve_blocks, False)
+    args.paragraph_break = coerce_float(args.paragraph_break, 0.035)
+    args.bin_thresh = coerce_float(args.bin_thresh, 0.5)
+    args.box_thresh = coerce_float(args.box_thresh, 0.5)
+    args.det_bs = coerce_int(args.det_bs, 1)
+    args.reco_bs = coerce_int(args.reco_bs, 128)
+    args.draw_labels = coerce_bool(args.draw_labels, True)
+    args.draw_confidence = coerce_bool(args.draw_confidence, False)
+    args.min_confidence_display = coerce_float(args.min_confidence_display, 0.0)
+    args.recognizer_sample_count = coerce_int(args.recognizer_sample_count, 24)
+    args.visualization_seed = coerce_int(args.visualization_seed, 0)
+    return args
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="IPOL docTR demo runner")
     parser.add_argument("--input", required=True)
-    parser.add_argument("--det-arch", default="fast_base")
-    parser.add_argument("--reco-arch", default="crnn_vgg16_bn")
-    parser.add_argument("--det-input-size", default="1024")
-    parser.add_argument("--preserve-aspect-ratio", type=str2bool, default=True)
-    parser.add_argument("--symmetric-pad", type=str2bool, default=True)
-    parser.add_argument("--assume-straight-pages", type=str2bool, default=True)
-    parser.add_argument("--export-as-straight-boxes", type=str2bool, default=False)
-    parser.add_argument("--straighten-pages", type=str2bool, default=False)
-    parser.add_argument("--detect-orientation", type=str2bool, default=False)
-    parser.add_argument("--detect-language", type=str2bool, default=False)
-    parser.add_argument("--resolve-lines", type=str2bool, default=True)
-    parser.add_argument("--resolve-blocks", type=str2bool, default=False)
-    parser.add_argument("--paragraph-break", type=float, default=0.035)
-    parser.add_argument("--bin-thresh", type=float, default=0.5)
-    parser.add_argument("--box-thresh", type=float, default=0.5)
-    parser.add_argument("--det-bs", type=int, default=1)
-    parser.add_argument("--reco-bs", type=int, default=128)
-    parser.add_argument("--draw-labels", type=str2bool, default=True)
-    parser.add_argument("--draw-confidence", type=str2bool, default=False)
-    parser.add_argument("--min-confidence-display", type=float, default=0.0)
-    parser.add_argument("--recognizer-sample-count", type=int, default=24)
-    parser.add_argument("--visualization-seed", type=int, default=0)
-    return parser.parse_args()
+    add_optional_value(parser, "--det-arch", "fast_base")
+    add_optional_value(parser, "--reco-arch", "crnn_vgg16_bn")
+    add_optional_value(parser, "--det-input-size", "1024")
+    add_optional_value(parser, "--preserve-aspect-ratio", True)
+    add_optional_value(parser, "--symmetric-pad", True)
+    add_optional_value(parser, "--assume-straight-pages", True)
+    add_optional_value(parser, "--export-as-straight-boxes", False)
+    add_optional_value(parser, "--straighten-pages", False)
+    add_optional_value(parser, "--detect-orientation", False)
+    add_optional_value(parser, "--detect-language", False)
+    add_optional_value(parser, "--resolve-lines", True)
+    add_optional_value(parser, "--resolve-blocks", False)
+    add_optional_value(parser, "--paragraph-break", 0.035)
+    add_optional_value(parser, "--bin-thresh", 0.5)
+    add_optional_value(parser, "--box-thresh", 0.5)
+    add_optional_value(parser, "--det-bs", 1)
+    add_optional_value(parser, "--reco-bs", 128)
+    add_optional_value(parser, "--draw-labels", True)
+    add_optional_value(parser, "--draw-confidence", False)
+    add_optional_value(parser, "--min-confidence-display", 0.0)
+    add_optional_value(parser, "--recognizer-sample-count", 24)
+    add_optional_value(parser, "--visualization-seed", 0)
+    return normalize_args(parser.parse_args())
 
 
 def to_jsonable(value: Any) -> Any:
