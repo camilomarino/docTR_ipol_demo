@@ -46,18 +46,13 @@
     {
       "id": "det_input_size",
       "label": "Detector input size",
-      "comments": "Size, in pixels, of the square tensor sent to the text detector. The default leaves docTR's selected detector preprocessing unchanged. Smaller values are faster but may miss small text; larger values cost more CPU and memory. Code: if not model_default, predictor.det_predictor.pre_processor.resize.size = (size, size).",
-      "type": "selection_radio",
-      "default_value": "model_default",
+      "comments": "Size, in pixels, of the square tensor sent to the text detector. Use 0 to keep the selected docTR detector default. Recommended values to try: 512, 768, 1024, 1280, 1536. Smaller values are faster but may miss small text; larger values cost more CPU and memory. Code: if value > 0, predictor.det_predictor.pre_processor.resize.size = (value, value).",
+      "type": "numeric",
       "values": {
-        "Model default": "model_default",
-        "512": "512",
-        "768": "768",
-        "1024": "1024",
-        "1280": "1280",
-        "1536": "1536"
-      },
-      "vertical": true
+        "default": 0,
+        "max": 8192,
+        "min": 0
+      }
     },
     {
       "id": "preserve_aspect_ratio",

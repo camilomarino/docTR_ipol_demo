@@ -9,7 +9,8 @@ OCR results and intermediate diagnostic visualizations.
 
 - Detector architecture: FAST, DBNet, and LinkNet variants.
 - Recognizer architecture: CRNN, PARSeq, and ViTSTR small.
-- Detector tensor size, aspect-ratio preservation, and symmetric padding.
+- Detector tensor size as a free numeric value, aspect-ratio preservation, and
+  symmetric padding.
 - Page/crop geometry options: straight boxes, rotated boxes, page
   straightening, orientation metadata, and language metadata.
 - Structure post-processing: line grouping, block grouping, and paragraph gap.
@@ -89,7 +90,7 @@ docker run --rm -v /tmp/doctr-ipol-out:/workdir/exec -w /workdir/exec doctr-ipol
   --input input_0.png \
   --det-arch fast_base \
   --reco-arch crnn_vgg16_bn \
-  --det-input-size model_default \
+  --det-input-size 0 \
   --preserve-aspect-ratio true \
   --symmetric-pad true \
   --reco-preserve-aspect-ratio true \

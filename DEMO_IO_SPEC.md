@@ -192,30 +192,32 @@ ocr_predictor(reco_arch=args.reco_arch, ...)
 
 Purpose: set the square image size used by docTR's detector preprocessor.
 
-DDL type: selection_radio.
+DDL type: numeric.
 
 Recommended values:
 
-- `model_default`: use the input size stored in the selected detector model
-  config. For most docTR text detectors this is `1024 x 1024`.
+- `0`: use the input size stored in the selected detector model config. For
+  most docTR text detectors this is `1024 x 1024`.
 - `512`
 - `768`
 - `1024`
 - `1280`
 - `1536`
 
-Default: `model_default`, so the first run matches `ocr_predictor()` without
-manual preprocessing overrides.
+Default: `0`, so the first run matches `ocr_predictor()` without manual
+preprocessing overrides.
 
 User-facing explanation:
 
-> Size, in pixels, of the square tensor sent to the text detector. Smaller values
-> are faster but may miss small text; larger values can recover small text but
-> cost more CPU time and memory.
+> Size, in pixels, of the square tensor sent to the text detector. Use 0 to keep
+> the selected docTR detector default. Recommended values to try: 512, 768,
+> 1024, 1280, 1536. Smaller values are faster but may miss small text; larger
+> values can recover small text but cost more CPU time and memory.
 
 Implementation:
 
 ```python
+args.det_input_size = normalize_det_input_size(args.det_input_size)
 if args.det_input_size != "model_default":
     size = int(args.det_input_size)
     predictor.det_predictor.pre_processor.resize.size = (size, size)

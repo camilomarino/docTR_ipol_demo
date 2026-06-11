@@ -56,7 +56,7 @@ OUTPUT_TEXT_FILES = [
 PARAMETER_EFFECTS = {
     "det_arch": "Passed to doctr.models.ocr_predictor(det_arch=...). It selects the detection model before any inference.",
     "reco_arch": "Passed to doctr.models.ocr_predictor(reco_arch=...). It selects the recognition model before any inference.",
-    "det_input_size": "If not 'model_default', applied after model construction as predictor.det_predictor.pre_processor.resize.size = (size, size). The default leaves docTR unchanged.",
+    "det_input_size": "If greater than 0, applied after model construction as predictor.det_predictor.pre_processor.resize.size = (size, size). A value of 0 leaves docTR unchanged.",
     "preserve_aspect_ratio": "Passed to doctr.models.ocr_predictor(preserve_aspect_ratio=...). docTR forwards it to the detector preprocessor resize transform.",
     "symmetric_pad": "Passed to doctr.models.ocr_predictor(symmetric_pad=...). docTR forwards it to the detector preprocessor resize transform.",
     "reco_preserve_aspect_ratio": "Applied after model construction as predictor.reco_predictor.pre_processor.resize.preserve_aspect_ratio. docTR's recognizer default is True.",
@@ -147,6 +147,20 @@ def coerce_int(value: Any, default: int) -> int:
         return default
 
 
+def normalize_det_input_size(value: Any) -> str:
+    value = empty_to(value, "model_default")
+    text = str(value).strip().lower()
+    if text in {"model_default", "default", "0"}:
+        return "model_default"
+    try:
+        size = int(text)
+    except ValueError:
+        return "model_default"
+    if size <= 0:
+        return "model_default"
+    return str(size)
+
+
 def add_optional_value(parser: argparse.ArgumentParser, flag: str, default: Any) -> None:
     parser.add_argument(flag, nargs="?", default=default, const="")
 
@@ -154,7 +168,7 @@ def add_optional_value(parser: argparse.ArgumentParser, flag: str, default: Any)
 def normalize_args(args: argparse.Namespace) -> argparse.Namespace:
     args.det_arch = empty_to(args.det_arch, "fast_base")
     args.reco_arch = empty_to(args.reco_arch, "crnn_vgg16_bn")
-    args.det_input_size = empty_to(args.det_input_size, "model_default")
+    args.det_input_size = normalize_det_input_size(args.det_input_size)
     args.preserve_aspect_ratio = coerce_bool(args.preserve_aspect_ratio, True)
     args.symmetric_pad = coerce_bool(args.symmetric_pad, True)
     args.reco_preserve_aspect_ratio = coerce_bool(args.reco_preserve_aspect_ratio, True)
