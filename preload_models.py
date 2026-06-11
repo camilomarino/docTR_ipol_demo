@@ -17,6 +17,8 @@ DET_ARCHS = [
     "db_resnet34",
     "db_mobilenet_v3_large",
     "linknet_resnet18",
+    "linknet_resnet34",
+    "linknet_resnet50",
 ]
 
 RECO_ARCHS = [
@@ -24,7 +26,11 @@ RECO_ARCHS = [
     "crnn_mobilenet_v3_small",
     "crnn_mobilenet_v3_large",
     "parseq",
+    "master",
+    "sar_resnet31",
     "vitstr_small",
+    "vitstr_base",
+    "viptr_tiny",
 ]
 
 

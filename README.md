@@ -7,8 +7,9 @@ OCR results and intermediate diagnostic visualizations.
 
 ## What the demo exposes
 
-- Detector architecture: FAST, DBNet, and LinkNet variants.
-- Recognizer architecture: CRNN, PARSeq, and ViTSTR small.
+- Detector architecture: all public docTR 1.0.1 FAST, DBNet, and LinkNet variants.
+- Recognizer architecture: all public docTR 1.0.1 CRNN, MASTER, SAR, PARSeq,
+  ViTSTR, and VIPTR variants.
 - Detector tensor size as a free numeric value, aspect-ratio preservation, and
   symmetric padding.
 - Page/crop geometry options: straight boxes, rotated boxes, page

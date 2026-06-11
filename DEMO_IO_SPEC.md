@@ -112,7 +112,7 @@ User-facing explanation:
 > FAST models are usually good CPU defaults; DBNet and LinkNet are useful for
 > comparing older or differently behaved detectors.
 
-Initial allowed values:
+Allowed values:
 
 - `fast_base` default, good modern default and reasonable CPU latency.
 - `fast_small`, faster/lighter variant.
@@ -121,21 +121,11 @@ Initial allowed values:
 - `db_resnet34`, lighter DBNet.
 - `db_mobilenet_v3_large`, mobile DBNet variant.
 - `linknet_resnet18`, useful for rotated/non-straight page tests.
+- `linknet_resnet34`, heavier LinkNet variant.
+- `linknet_resnet50`, heaviest LinkNet variant exposed by docTR 1.0.1.
 
-Full docTR detection set currently available:
-
-- `db_resnet34`
-- `db_resnet50`
-- `db_mobilenet_v3_large`
-- `linknet_resnet18`
-- `linknet_resnet34`
-- `linknet_resnet50`
-- `fast_tiny`
-- `fast_small`
-- `fast_base`
-
-First version recommendation: expose the initial list, not every heavy variant.
-If we expose all models, `preload_models.py` must download all their weights.
+The DDL intentionally exposes the full public docTR 1.0.1 detection set, and
+`preload_models.py` downloads weights for all of them during Docker build.
 
 CLI mapping:
 
@@ -161,28 +151,20 @@ User-facing explanation:
 > CRNN models are faster; transformer-style recognizers such as PARSeq or ViTSTR
 > may improve difficult words but are heavier.
 
-Initial allowed values:
+Allowed values:
 
 - `crnn_vgg16_bn` default, stable docTR baseline.
 - `crnn_mobilenet_v3_small`, faster/lighter.
 - `crnn_mobilenet_v3_large`, still light and often useful.
 - `parseq`, strong transformer-style recognizer.
+- `master`, heavier attention-based recognizer.
+- `sar_resnet31`, heavier recognizer.
 - `vitstr_small`, compact ViT recognizer.
+- `vitstr_base`, heavier ViT recognizer.
+- `viptr_tiny`, VIPTR recognizer variant exposed by docTR 1.0.1.
 
-Full docTR recognition set currently available:
-
-- `crnn_vgg16_bn`
-- `crnn_mobilenet_v3_small`
-- `crnn_mobilenet_v3_large`
-- `sar_resnet31`
-- `master`
-- `vitstr_small`
-- `vitstr_base`
-- `parseq`
-- `viptr_tiny`
-
-First version recommendation: do not expose `master`, `sar_resnet31`, and
-`vitstr_base` until Docker image size and runtime are measured.
+The DDL intentionally exposes the full public docTR 1.0.1 recognition set, and
+`preload_models.py` downloads weights for all of them during Docker build.
 
 CLI mapping:
 

@@ -29,7 +29,7 @@
     {
       "id": "det_arch",
       "label": "Text detector",
-      "comments": "Selects the neural network used to localize text regions before recognition. FAST models are good CPU defaults; DBNet and LinkNet are useful for comparison. Code: ocr_predictor(det_arch=args.det_arch, ...).",
+      "comments": "Selects the neural network used to localize text regions before recognition. This list includes every public detector architecture exposed by docTR 1.0.1. FAST models are good CPU defaults; LinkNet ResNet-34/50 and DBNet ResNet-50 are heavier. Code: ocr_predictor(det_arch=args.det_arch, ...).",
       "type": "selection_radio",
       "default_value": "fast_base",
       "values": {
@@ -39,7 +39,9 @@
         "DBNet ResNet-50": "db_resnet50",
         "DBNet ResNet-34": "db_resnet34",
         "DBNet MobileNetV3 large": "db_mobilenet_v3_large",
-        "LinkNet ResNet-18": "linknet_resnet18"
+        "LinkNet ResNet-18": "linknet_resnet18",
+        "LinkNet ResNet-34": "linknet_resnet34",
+        "LinkNet ResNet-50": "linknet_resnet50"
       },
       "vertical": true
     },
@@ -110,7 +112,7 @@
     {
       "id": "reco_arch",
       "label": "Text recognizer",
-      "comments": "Selects the neural network used to read each detected word crop. CRNN models are faster; PARSeq and ViTSTR are heavier alternatives. Code: ocr_predictor(reco_arch=args.reco_arch, ...).",
+      "comments": "Selects the neural network used to read each detected word crop. This list includes every public recognizer architecture exposed by docTR 1.0.1. CRNN models are faster; MASTER, SAR, PARSeq, ViTSTR base, and VIPTR are heavier alternatives. Code: ocr_predictor(reco_arch=args.reco_arch, ...).",
       "type": "selection_radio",
       "default_value": "crnn_vgg16_bn",
       "values": {
@@ -118,7 +120,11 @@
         "CRNN MobileNetV3 small": "crnn_mobilenet_v3_small",
         "CRNN MobileNetV3 large": "crnn_mobilenet_v3_large",
         "PARSeq": "parseq",
-        "ViTSTR small": "vitstr_small"
+        "MASTER": "master",
+        "SAR ResNet-31": "sar_resnet31",
+        "ViTSTR small": "vitstr_small",
+        "ViTSTR base": "vitstr_base",
+        "VIPTR tiny": "viptr_tiny"
       },
       "vertical": true
     },
