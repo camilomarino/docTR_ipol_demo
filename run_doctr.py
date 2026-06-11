@@ -78,9 +78,10 @@ PARAMETER_EFFECTS = {
     "resolve_lines": "Passed through ocr_predictor(..., resolve_lines=...) to docTR's DocumentBuilder.",
     "resolve_blocks": "Passed through ocr_predictor(..., resolve_blocks=...) to docTR's DocumentBuilder.",
     "paragraph_break": "Passed through ocr_predictor(..., paragraph_break=...) to docTR's DocumentBuilder line/block grouping.",
-    "bin_thresh": "Applied after model construction as predictor.det_predictor.model.postprocessor.bin_thresh. It thresholds the detector response map.",
-    "box_thresh": "Applied after model construction as predictor.det_predictor.model.postprocessor.box_thresh. It filters detector boxes by score.",
-    "unclip_ratio": "Applied after model construction as predictor.det_predictor.model.postprocessor.unclip_ratio when available. It controls detector box expansion.",
+    "det_threshold_mode": "If model_default, the detector postprocessor keeps docTR's own defaults for the selected architecture. If custom, the three detector threshold sliders are applied after model construction.",
+    "bin_thresh": "Custom detector threshold. Used only when det_threshold_mode=custom; otherwise ignored.",
+    "box_thresh": "Custom detector box threshold. Used only when det_threshold_mode=custom; otherwise ignored.",
+    "unclip_ratio": "Custom detector box expansion ratio. Used only when det_threshold_mode=custom; otherwise ignored.",
     "draw_labels": "Visualization-only. It does not affect docTR inference or JSON outputs.",
     "draw_confidence": "Visualization-only. It does not affect docTR inference or JSON outputs.",
     "min_confidence_display": "Visualization-only. It hides low-confidence words in overlays but never filters JSON, CSV, hOCR, or reading order text.",
@@ -200,6 +201,9 @@ def normalize_args(args: argparse.Namespace) -> argparse.Namespace:
     args.resolve_lines = coerce_bool(args.resolve_lines, True)
     args.resolve_blocks = coerce_bool(args.resolve_blocks, False)
     args.paragraph_break = coerce_float(args.paragraph_break, 0.035)
+    args.det_threshold_mode = empty_to(args.det_threshold_mode, "model_default")
+    if args.det_threshold_mode not in {"model_default", "custom"}:
+        args.det_threshold_mode = "model_default"
     args.bin_thresh = coerce_float(args.bin_thresh, 0.1)
     args.box_thresh = coerce_float(args.box_thresh, 0.1)
     args.unclip_ratio = coerce_float(args.unclip_ratio, 1.0)
@@ -237,6 +241,7 @@ def parse_args() -> argparse.Namespace:
     add_optional_value(parser, "--resolve-lines", True)
     add_optional_value(parser, "--resolve-blocks", False)
     add_optional_value(parser, "--paragraph-break", 0.035)
+    add_optional_value(parser, "--det-threshold-mode", "model_default")
     add_optional_value(parser, "--bin-thresh", 0.1)
     add_optional_value(parser, "--box-thresh", 0.1)
     add_optional_value(parser, "--unclip-ratio", 1.0)
@@ -1154,13 +1159,39 @@ def build_predictor(args: argparse.Namespace) -> Any:
     predictor.reco_predictor.target_ar = args.crop_split_target_ar
     predictor.reco_predictor.overlap_ratio = args.crop_split_overlap_ratio
 
-    # DDL detection post-processing parameters. docTR stores both thresholds on
-    # the detector model postprocessor, so they are applied after construction.
-    predictor.det_predictor.model.postprocessor.bin_thresh = args.bin_thresh
-    predictor.det_predictor.model.postprocessor.box_thresh = args.box_thresh
-    if hasattr(predictor.det_predictor.model.postprocessor, "unclip_ratio"):
-        predictor.det_predictor.model.postprocessor.unclip_ratio = args.unclip_ratio
+    # DDL detection post-processing parameters. In model_default mode we keep
+    # docTR's architecture-specific postprocessor defaults. In custom mode, the
+    # sliders override those values after construction.
+    predictor.ipol_detector_postprocessor_defaults = detector_postprocessor_state(predictor)
+    if args.det_threshold_mode == "custom":
+        predictor.det_predictor.model.postprocessor.bin_thresh = args.bin_thresh
+        predictor.det_predictor.model.postprocessor.box_thresh = args.box_thresh
+        if hasattr(predictor.det_predictor.model.postprocessor, "unclip_ratio"):
+            predictor.det_predictor.model.postprocessor.unclip_ratio = args.unclip_ratio
+    predictor.ipol_detector_postprocessor_applied = detector_postprocessor_state(predictor)
     return predictor
+
+
+def detector_postprocessor_state(predictor: Any) -> dict[str, Any]:
+    postprocessor = predictor.det_predictor.model.postprocessor
+    return {
+        "bin_thresh": getattr(postprocessor, "bin_thresh", None),
+        "box_thresh": getattr(postprocessor, "box_thresh", None),
+        "unclip_ratio": getattr(postprocessor, "unclip_ratio", None),
+    }
+
+
+def detector_postprocessor_report(args: argparse.Namespace, predictor: Any) -> dict[str, Any]:
+    return {
+        "mode": args.det_threshold_mode,
+        "custom_values": {
+            "bin_thresh": args.bin_thresh,
+            "box_thresh": args.box_thresh,
+            "unclip_ratio": args.unclip_ratio,
+        },
+        "model_defaults": getattr(predictor, "ipol_detector_postprocessor_defaults", detector_postprocessor_state(predictor)),
+        "applied": getattr(predictor, "ipol_detector_postprocessor_applied", detector_postprocessor_state(predictor)),
+    }
 
 
 def selected_params(args: argparse.Namespace) -> dict[str, Any]:
@@ -1186,6 +1217,7 @@ def selected_params(args: argparse.Namespace) -> dict[str, Any]:
         "resolve_lines": args.resolve_lines,
         "resolve_blocks": args.resolve_blocks,
         "paragraph_break": args.paragraph_break,
+        "det_threshold_mode": args.det_threshold_mode,
         "bin_thresh": args.bin_thresh,
         "box_thresh": args.box_thresh,
         "unclip_ratio": args.unclip_ratio,
@@ -1219,6 +1251,7 @@ def write_summary(
     ocr_shape: tuple[int, int, int],
     rows: list[dict[str, Any]],
     document_export: dict[str, Any],
+    detector_postprocessor: dict[str, Any],
     timings: dict[str, float],
     hocr_status: str,
 ) -> None:
@@ -1234,6 +1267,8 @@ def write_summary(
         f"Detector: {args.det_arch}",
         f"Recognizer: {args.reco_arch}",
         f"Detector input size: {args.det_input_size}",
+        f"Detector threshold mode: {detector_postprocessor['mode']}",
+        f"Detector thresholds applied: {detector_postprocessor['applied']}",
         f"Words: {len(rows)}",
         f"Lines: {line_count}",
         f"Blocks: {block_count}",
@@ -1281,9 +1316,13 @@ def write_outputs(args: argparse.Namespace, input_page: np.ndarray, predictor: A
     detector_target_shape = detector_preview.shape[:2]
 
     prob_map = primary_map(diagnostics["out_maps"][0])
+    detector_postprocessor = detector_postprocessor_report(args, predictor)
+    actual_bin_thresh = detector_postprocessor["applied"].get("bin_thresh")
+    if actual_bin_thresh is None:
+        actual_bin_thresh = args.bin_thresh
     save_rgb("detector_probability_map.png", resize_to_shape(heatmap_rgb(prob_map), detector_target_shape, cv2.INTER_LINEAR))
-    save_rgb("detector_binary_map.png", resize_to_shape(binary_map(prob_map, args.bin_thresh), detector_target_shape, cv2.INTER_NEAREST))
-    save_detector_components("detector_components.png", prob_map, args.bin_thresh, detector_target_shape)
+    save_rgb("detector_binary_map.png", resize_to_shape(binary_map(prob_map, actual_bin_thresh), detector_target_shape, cv2.INTER_NEAREST))
+    save_detector_components("detector_components.png", prob_map, actual_bin_thresh, detector_target_shape)
 
     detector_boxes = diagnostics["detector_boxes"][0] if diagnostics["detector_boxes"] else np.empty((0, 4))
     detector_scores = diagnostics["detector_scores"][0] if diagnostics["detector_scores"] else None
@@ -1348,6 +1387,7 @@ def write_outputs(args: argparse.Namespace, input_page: np.ndarray, predictor: A
     structure_debug = {
         "detector_boxes": diagnostics["detector_boxes"],
         "detector_objectness_scores": diagnostics["detector_scores"],
+        "detector_postprocessor": detector_postprocessor,
         "sampled_crop_indices": indices,
         "recognizer_boxes": recognizer_boxes,
         "recognizer_split_wide_crops": predictor.reco_predictor.split_wide_crops,
@@ -1360,7 +1400,7 @@ def write_outputs(args: argparse.Namespace, input_page: np.ndarray, predictor: A
         "document_structure": document_export,
         "diagnostic_notes": {
             "detector_probability_map": "First channel of the detector response map.",
-            "detector_binary_map": f"Detector response thresholded at bin_thresh={args.bin_thresh}.",
+            "detector_binary_map": f"Detector response thresholded at applied bin_thresh={actual_bin_thresh}.",
             "recognizer_split_overlay": "Shows the same boxes sent to the recognizer and marks boxes split by docTR split_wide_crops in red.",
             "recognizer_split_crops": "For sampled detector crops, shows the crop sent to the recognizer and any sub-crops created by docTR split_wide_crops before recognition.",
             "recognizer_input_crops_stack": "Sampled crops after docTR recognizer preprocessing and denormalization for display.",
@@ -1379,6 +1419,7 @@ def write_outputs(args: argparse.Namespace, input_page: np.ndarray, predictor: A
         },
         "parameters": selected_params(args),
         "parameter_effects": {key: PARAMETER_EFFECTS[key] for key in selected_params(args)},
+        "detector_postprocessor": detector_postprocessor,
         "counts": {
             "pages": len(export_pages(document_export)),
             "words": len(rows),
@@ -1392,7 +1433,7 @@ def write_outputs(args: argparse.Namespace, input_page: np.ndarray, predictor: A
         "doctr": document_export,
     }
     save_json("result.json", full_result)
-    write_summary(args, input_page.shape, ocr_page.shape, rows, document_export, timings, hocr_status)
+    write_summary(args, input_page.shape, ocr_page.shape, rows, document_export, detector_postprocessor, timings, hocr_status)
 
 
 def write_failure_outputs(args: argparse.Namespace, exc: BaseException) -> None:

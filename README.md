@@ -15,7 +15,8 @@ OCR results and intermediate diagnostic visualizations.
 - Page/crop geometry options: straight boxes, rotated boxes, page
   straightening, orientation metadata, and language metadata.
 - Structure post-processing: line grouping, block grouping, and paragraph gap.
-- Detection thresholds: binarization threshold and box score threshold.
+- Detection thresholds: detector defaults per architecture or custom
+  binarization, box score, and box expansion values.
 - Visualization controls for labels, confidence display, and sampled crops.
 
 The demo intentionally does not expose `page_max_side`; scale is controlled by

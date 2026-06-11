@@ -674,15 +674,51 @@ Visibility: useful when `resolve_lines=true`; more meaningful with
 
 ## Post-processing Detection Parameters
 
+### `det_threshold_mode`
+
+Purpose: choose whether detector thresholds come from the selected docTR model
+or from the custom sliders.
+
+DDL type: selection_radio.
+
+Default: `model_default`.
+
+Allowed values:
+
+- `model_default`: keep docTR's own postprocessor defaults for the selected
+  detector architecture.
+- `custom`: apply `bin_thresh`, `box_thresh`, and `unclip_ratio` after model
+  construction.
+
+User-facing explanation:
+
+> Use detector defaults to keep the thresholds defined by docTR for the selected
+> detector. Use custom values to override them with the sliders below. When
+> detector defaults is selected, the three slider values are ignored.
+
+Implementation:
+
+```python
+post = predictor.det_predictor.model.postprocessor
+model_defaults = detector_postprocessor_state(predictor)
+if args.det_threshold_mode == "custom":
+    post.bin_thresh = args.bin_thresh
+    post.box_thresh = args.box_thresh
+    post.unclip_ratio = args.unclip_ratio
+```
+
+The run exports both `model_defaults` and `applied` values in `result.json` and
+`structure_debug.json`.
+
 ### `bin_thresh`
 
 Purpose: threshold for detector binarization map.
 
 DDL type: range.
 
-Default: `0.1`, matching docTR's no-argument `fast_base` detector
-postprocessor default. Detector-specific note: DBNet variants default to `0.3`
-internally if instantiated directly.
+Default slider value: `0.1`, matching FAST detector defaults. This value is
+used only when `det_threshold_mode=custom`; otherwise docTR's selected-detector
+default is used.
 
 User-facing explanation:
 
@@ -696,7 +732,7 @@ Suggested range:
 - max: `0.95`
 - step: `0.01`
 
-docTR mapping after predictor creation:
+docTR mapping after predictor creation, only in custom mode:
 
 ```python
 predictor.det_predictor.model.postprocessor.bin_thresh = args.bin_thresh
@@ -709,6 +745,7 @@ Purpose: threshold for keeping detected boxes.
 DDL type: range.
 
 Default: `0.1`, matching docTR's `fast_base` detector postprocessor default.
+This value is used only when `det_threshold_mode=custom`.
 
 User-facing explanation:
 
@@ -722,7 +759,7 @@ Suggested range:
 - max: `0.95`
 - step: `0.01`
 
-docTR mapping after predictor creation:
+docTR mapping after predictor creation, only in custom mode:
 
 ```python
 predictor.det_predictor.model.postprocessor.box_thresh = args.box_thresh
@@ -735,9 +772,9 @@ components are extracted.
 
 DDL type: range.
 
-Default: `1.0`, matching the no-argument `fast_base` OCR run.
-Detector-specific note: DBNet and LinkNet variants default to `1.5` internally
-if instantiated directly.
+Default slider value: `1.0`, matching FAST detector defaults. This value is used
+only when `det_threshold_mode=custom`; DBNet and LinkNet keep their own `1.5`
+default in model-default mode.
 
 Suggested range:
 
@@ -745,7 +782,7 @@ Suggested range:
 - max: `3.0`
 - step: `0.05`
 
-docTR mapping after predictor creation:
+docTR mapping after predictor creation, only in custom mode:
 
 ```python
 predictor.det_predictor.model.postprocessor.unclip_ratio = args.unclip_ratio
@@ -891,6 +928,7 @@ This is the smallest useful set that still exposes the requested behavior:
 - `resolve_lines`
 - `resolve_blocks`
 - `paragraph_break`
+- `det_threshold_mode`
 - `bin_thresh`
 - `box_thresh`
 - `unclip_ratio`
@@ -948,7 +986,7 @@ Archive: yes.
 
 #### `detector_binary_map.png`
 
-Detector response after applying `bin_thresh`.
+Detector response after applying the effective detector `bin_thresh`.
 
 For side-by-side comparison, save this image with the same pixel dimensions as
 `detector_input.png`.
@@ -1530,7 +1568,9 @@ states. The intended flow is:
 1. Load `input_0.png` as RGB.
 2. Instantiate `ocr_predictor` with the selected detector, recognizer, geometry,
    structure, and batch options.
-3. Apply `det_input_size`, `bin_thresh`, and `box_thresh`.
+3. Apply `det_input_size`; apply detector thresholds only when
+   `det_threshold_mode=custom`, otherwise keep the selected detector's docTR
+   defaults.
 4. Capture detector preprocessor output and save `detector_input.png`.
 5. Run the detector with `return_maps=True` to collect:
    - raw location predictions;
@@ -1560,7 +1600,8 @@ Implementation caution:
   the same detector pass for diagnostics and OCR.
 - Diagnostic detector boxes must be generated with the same selected
   `assume_straight_pages`, `preserve_aspect_ratio`, `symmetric_pad`,
-  `det_input_size`, `bin_thresh`, and `box_thresh` as the final OCR run.
+  `det_input_size`, detector threshold mode, and effective detector thresholds
+  as the final OCR run.
 - The sampled crop indices must be stored in `result.json` and
   `structure_debug.json` so that crop stack images can be traced back to word
   boxes and OCR predictions.

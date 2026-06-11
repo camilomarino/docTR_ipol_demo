@@ -107,6 +107,58 @@
     },
     {
       "type": "label",
+      "label": "<h3>Detector post-processing / thresholds</h3>"
+    },
+    {
+      "id": "det_threshold_mode",
+      "label": "Detector threshold mode",
+      "comments": "Choose whether to keep docTR's own post-processing thresholds for the selected detector or override them with the custom values below. If detector defaults is selected, binarization threshold, box threshold, and box expansion ratio below are ignored.",
+      "type": "selection_radio",
+      "default_value": "model_default",
+      "values": {
+        "Use detector defaults": "model_default",
+        "Use custom values below": "custom"
+      },
+      "vertical": true
+    },
+    {
+      "id": "bin_thresh",
+      "label": "Binarization threshold",
+      "comments": "Custom threshold applied to the detector probability map before extracting candidate text components. Used only when detector threshold mode is custom; otherwise this value is ignored. Default 0.1 matches FAST detector defaults. Code when custom: predictor.det_predictor.model.postprocessor.bin_thresh = args.bin_thresh.",
+      "type": "range",
+      "values": {
+        "default": 0.1,
+        "max": 0.95,
+        "min": 0.01,
+        "step": 0.01
+      }
+    },
+    {
+      "id": "box_thresh",
+      "label": "Box threshold",
+      "comments": "Custom minimum score required to keep a detected text box after detector post-processing. Used only when detector threshold mode is custom; otherwise this value is ignored. Default 0.1 matches FAST detector defaults. Code when custom: predictor.det_predictor.model.postprocessor.box_thresh = args.box_thresh.",
+      "type": "range",
+      "values": {
+        "default": 0.1,
+        "max": 0.95,
+        "min": 0.01,
+        "step": 0.01
+      }
+    },
+    {
+      "id": "unclip_ratio",
+      "label": "Box expansion ratio",
+      "comments": "Custom expansion ratio used by the detector post-processor when converting text components into boxes. Used only when detector threshold mode is custom; otherwise this value is ignored. Default 1.0 matches FAST detector defaults. Code when custom: predictor.det_predictor.model.postprocessor.unclip_ratio = args.unclip_ratio when available.",
+      "type": "range",
+      "values": {
+        "default": 1.0,
+        "max": 3.0,
+        "min": 0.5,
+        "step": 0.05
+      }
+    },
+    {
+      "type": "label",
       "label": "<h3>Recognizer</h3>"
     },
     {
@@ -195,46 +247,6 @@
       "default_value": false,
       "type": "checkbox",
       "comments": "Advanced diagnostic switch. It maps to ocr_predictor(disable_crop_orientation=...). It only matters when assume_straight_pages is disabled and crop rectification would otherwise use the crop orientation model. Code: ocr_predictor(disable_crop_orientation=args.disable_crop_orientation, ...)."
-    },
-    {
-      "type": "label",
-      "label": "<h3>Post-processing</h3>"
-    },
-    {
-      "id": "bin_thresh",
-      "label": "Binarization threshold",
-      "comments": "Threshold applied to the detector probability map before extracting candidate text components. Default 0.1 matches docTR's no-argument FAST-base run; DBNet detectors internally default to 0.3. Code: predictor.det_predictor.model.postprocessor.bin_thresh = args.bin_thresh.",
-      "type": "range",
-      "values": {
-        "default": 0.1,
-        "max": 0.95,
-        "min": 0.01,
-        "step": 0.01
-      }
-    },
-    {
-      "id": "box_thresh",
-      "label": "Box threshold",
-      "comments": "Minimum score required to keep a detected text box after detector post-processing. Code: predictor.det_predictor.model.postprocessor.box_thresh = args.box_thresh.",
-      "type": "range",
-      "values": {
-        "default": 0.1,
-        "max": 0.95,
-        "min": 0.01,
-        "step": 0.01
-      }
-    },
-    {
-      "id": "unclip_ratio",
-      "label": "Box expansion ratio",
-      "comments": "Expansion ratio used by the detector post-processor when converting text components into boxes. Default 1.0 matches docTR's no-argument FAST-base run; DBNet and LinkNet internally default to 1.5. Code: predictor.det_predictor.model.postprocessor.unclip_ratio = args.unclip_ratio when available.",
-      "type": "range",
-      "values": {
-        "default": 1.0,
-        "max": 3.0,
-        "min": 0.5,
-        "step": 0.05
-      }
     },
     {
       "id": "export_as_straight_boxes",
@@ -503,6 +515,7 @@
       "crop_split_target_ar",
       "crop_split_overlap_ratio",
       "disable_crop_orientation",
+      "det_threshold_mode",
       "bin_thresh",
       "box_thresh",
       "unclip_ratio",
@@ -521,5 +534,5 @@
       "run_time": "run time"
     }
   },
-  "run": "python $bin/run_doctr.py --input \"$input_0\" --det-arch \"$det_arch\" --reco-arch \"$reco_arch\" --det-input-size \"$det_input_size\" --preserve-aspect-ratio \"$preserve_aspect_ratio\" --symmetric-pad \"$symmetric_pad\" --reco-preserve-aspect-ratio \"$reco_preserve_aspect_ratio\" --reco-symmetric-pad \"$reco_symmetric_pad\" --split-wide-crops \"$split_wide_crops\" --crop-split-critical-ar \"$crop_split_critical_ar\" --crop-split-target-ar \"$crop_split_target_ar\" --crop-split-overlap-ratio \"$crop_split_overlap_ratio\" --assume-straight-pages \"$assume_straight_pages\" --export-as-straight-boxes \"$export_as_straight_boxes\" --straighten-pages \"$straighten_pages\" --detect-orientation \"$detect_orientation\" --detect-language \"$detect_language\" --disable-page-orientation \"$disable_page_orientation\" --disable-crop-orientation \"$disable_crop_orientation\" --resolve-lines \"$resolve_lines\" --resolve-blocks \"$resolve_blocks\" --paragraph-break \"$paragraph_break\" --bin-thresh \"$bin_thresh\" --box-thresh \"$box_thresh\" --unclip-ratio \"$unclip_ratio\" --draw-labels \"$draw_labels\" --draw-confidence \"$draw_confidence\" --min-confidence-display \"$min_confidence_display\" --recognizer-sample-count \"$recognizer_sample_count\" --visualization-seed \"$visualization_seed\""
+  "run": "python $bin/run_doctr.py --input \"$input_0\" --det-arch \"$det_arch\" --reco-arch \"$reco_arch\" --det-input-size \"$det_input_size\" --preserve-aspect-ratio \"$preserve_aspect_ratio\" --symmetric-pad \"$symmetric_pad\" --reco-preserve-aspect-ratio \"$reco_preserve_aspect_ratio\" --reco-symmetric-pad \"$reco_symmetric_pad\" --split-wide-crops \"$split_wide_crops\" --crop-split-critical-ar \"$crop_split_critical_ar\" --crop-split-target-ar \"$crop_split_target_ar\" --crop-split-overlap-ratio \"$crop_split_overlap_ratio\" --assume-straight-pages \"$assume_straight_pages\" --export-as-straight-boxes \"$export_as_straight_boxes\" --straighten-pages \"$straighten_pages\" --detect-orientation \"$detect_orientation\" --detect-language \"$detect_language\" --disable-page-orientation \"$disable_page_orientation\" --disable-crop-orientation \"$disable_crop_orientation\" --resolve-lines \"$resolve_lines\" --resolve-blocks \"$resolve_blocks\" --paragraph-break \"$paragraph_break\" --det-threshold-mode \"$det_threshold_mode\" --bin-thresh \"$bin_thresh\" --box-thresh \"$box_thresh\" --unclip-ratio \"$unclip_ratio\" --draw-labels \"$draw_labels\" --draw-confidence \"$draw_confidence\" --min-confidence-display \"$min_confidence_display\" --recognizer-sample-count \"$recognizer_sample_count\" --visualization-seed \"$visualization_seed\""
 }
