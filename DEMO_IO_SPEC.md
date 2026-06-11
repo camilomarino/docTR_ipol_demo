@@ -231,8 +231,7 @@ input size.
 
 ### `preserve_aspect_ratio`
 
-Purpose: detector padding switch. Preserve aspect ratio while resizing before
-detector inference.
+Purpose: preserve page aspect ratio while resizing before detector inference.
 
 DDL type: checkbox.
 
@@ -248,6 +247,10 @@ docTR mapping:
 ```python
 ocr_predictor(preserve_aspect_ratio=args.preserve_aspect_ratio, ...)
 ```
+
+Note: docTR does not expose an independent "enable padding" flag. Padding is the
+consequence of preserving aspect ratio when the page ratio differs from the
+detector tensor ratio.
 
 ### `symmetric_pad`
 

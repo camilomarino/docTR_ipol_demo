@@ -59,17 +59,17 @@
     },
     {
       "id": "preserve_aspect_ratio",
-      "label": "Detector padding / preserve aspect ratio",
+      "label": "Preserve detector aspect ratio",
       "default": true,
       "type": "checkbox",
-      "comments": "docTR detector padding switch. If enabled, the page is resized to fit inside the detector square and padded instead of stretched. It maps to ocr_predictor(preserve_aspect_ratio=...)."
+      "comments": "Resize the page to fit inside the detector square without distorting it. If enabled and the page is not square, docTR adds padding; if disabled, the page is stretched. Maps to ocr_predictor(preserve_aspect_ratio=...)."
     },
     {
       "id": "symmetric_pad",
       "label": "Detector symmetric padding",
       "default": true,
       "type": "checkbox",
-      "comments": "When detector padding is enabled, add padding on both sides rather than only at the bottom/right. It maps to ocr_predictor(symmetric_pad=...)."
+      "comments": "Only applies when detector aspect ratio is preserved. If enabled, padding is split on both sides; if disabled, padding is added at the bottom/right. Maps to ocr_predictor(symmetric_pad=...)."
     },
     {
       "id": "assume_straight_pages",
