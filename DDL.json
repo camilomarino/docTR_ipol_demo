@@ -7,7 +7,7 @@
     "requirements": "docker"
   },
   "build": {
-    "url": "git@github.com:camilomarino/docTR_ipol_demo.git",
+    "url": "https://github.com/camilomarino/docTR_ipol_demo.git",
     "rev": "origin/main",
     "dockerfile": ".ipol/Dockerfile"
   },

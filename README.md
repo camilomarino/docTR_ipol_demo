@@ -129,7 +129,8 @@ Use `DDL.json` as the CP2 configuration. The build section expects the
 repository to be available at:
 
 ```bash
-git@github.com:camilomarino/docTR_ipol_demo.git
+https://github.com/camilomarino/docTR_ipol_demo.git
 ```
 
-If the repository is private, add the deploy key shown by CP2 to GitHub.
+For a private repository, use the SSH URL instead and add the deploy key shown
+by CP2 to GitHub.
